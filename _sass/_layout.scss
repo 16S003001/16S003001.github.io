@@ -17,13 +17,16 @@
     letter-spacing: -1px;
     margin-bottom: 0;
     float: left;
-    text-decoration: none;
     cursor: pointer;
 
     &,
     &:visited {
         color: $grey-color-dark;
     }
+}
+
+.site-title:hover {
+    text-decoration: none;
 }
 
 .site-nav {
