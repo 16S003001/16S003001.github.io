@@ -1,0 +1,6 @@
+﻿---
+layout: post
+date:   2016-02-25 18:26:15 +0800
+categories: jekyll update
+---
+You’ll find this post in your `_posts` directsss
