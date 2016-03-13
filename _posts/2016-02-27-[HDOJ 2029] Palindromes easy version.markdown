@@ -2,7 +2,7 @@
 layout: post
 title:  "[HDOJ 2029] Palindromes easy version"
 date:   2016-02-27 12:48:15 +0800
-categories: hdoj
+categories: HDOJ
 ---
 ### __问题描述__
 > “回文串”是一个正读和反读都一样的字符串，比如“level”或者“noon”等等就是回文串。请写一个程序判断读入的字符串是否是“回文”。
