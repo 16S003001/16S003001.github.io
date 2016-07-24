@@ -148,10 +148,9 @@ dispatchTouchEvent
 OnTouchListener中的onTouch
 onTouchEvent
 
-下面跟进View.java中的相关函数
+下面跟进View.java中的相关函数。
 
 View.java中的dispatchTouchEvent函数
-
 {% highlight bash linenos %}
 public boolean dispatchTouchEvent(MotionEvent event) {
     if (event.isTargetAccessibilityFocus()) {
@@ -198,3 +197,9 @@ public boolean dispatchTouchEvent(MotionEvent event) {
     return result;
 }
 {% endhighlight %}
+
+20-31行是比较重要的一段逻辑。
+
+在第22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定调节为 当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
+
+28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch函数消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
