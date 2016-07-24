@@ -5,7 +5,7 @@ date:   2016-07-24 18:30:54 +0800
 categories: Android
 ---
 
-本文将主要讨论View的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关函数调用的过程。
+本文将主要讨论View和ViewGroup的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关函数调用的过程。
 
 CustomButton.java
 {% highlight bash linenos %}
@@ -104,5 +104,105 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         }
         return false;
     }
+}
+{% endhighlight %}
+
+activity_main.xml
+{% highlight bash linenos %}
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.guoyonghui.eventdispatch.MainActivity">
+
+    <com.guoyonghui.eventdispatch.view.CustomButton
+        android:id="@+id/click"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:longClickable="true"
+        android:text="@string/app_name"
+        android:textAllCaps="false"/>
+
+</RelativeLayout>
+{% endhighlight %}
+
+点击按钮后的控制台输出
+{% highlight bash linenos %}
+07-24 18:45:33.470 6930-6930/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-24 18:45:33.470 6930-6930/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_DOWN
+07-24 18:45:33.470 6930-6930/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_DOWN
+07-24 18:45:33.490 6930-6930/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_UP
+07-24 18:45:33.490 6930-6930/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_UP
+07-24 18:45:33.490 6930-6930/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_UP
+07-24 18:45:33.500 6930-6930/com.guoyonghui.eventdispatch D/MainActivity: onClick
+{% endhighlight %}
+
+从控制台输出可以看出事件传递的基本过程是：
+dispatchTouchEvent
+OnTouchListener中的onTouch
+onTouchEvent
+
+下面跟进View.java中的相关函数
+
+View.java中的dispatchTouchEvent函数
+
+{% highlight bash linenos %}
+public boolean dispatchTouchEvent(MotionEvent event) {
+    // If the event should be handled by accessibility focus first.
+    if (event.isTargetAccessibilityFocus()) {
+        // We don't have focus or no virtual descendant has it, do not handle the event.
+        if (!isAccessibilityFocusedViewOrHost()) {
+            return false;
+        }
+        // We have focus and got the event, then use normal event dispatch.
+        event.setTargetAccessibilityFocus(false);
+    }
+
+    boolean result = false;
+
+    if (mInputEventConsistencyVerifier != null) {
+        mInputEventConsistencyVerifier.onTouchEvent(event, 0);
+    }
+
+    final int actionMasked = event.getActionMasked();
+    if (actionMasked == MotionEvent.ACTION_DOWN) {
+        // Defensive cleanup for new gesture
+        stopNestedScroll();
+    }
+
+    if (onFilterTouchEventForSecurity(event)) {
+        //noinspection SimplifiableIfStatement
+        ListenerInfo li = mListenerInfo;
+        if (li != null && li.mOnTouchListener != null
+                && (mViewFlags & ENABLED_MASK) == ENABLED
+                && li.mOnTouchListener.onTouch(this, event)) {
+            result = true;
+        }
+
+        if (!result && onTouchEvent(event)) {
+            result = true;
+        }
+    }
+
+    if (!result && mInputEventConsistencyVerifier != null) {
+        mInputEventConsistencyVerifier.onUnhandledEvent(event, 0);
+    }
+
+    // Clean up after nested scrolls if this is the end of a gesture;
+    // also cancel it if we tried an ACTION_DOWN but we didn't want the rest
+    // of the gesture.
+    if (actionMasked == MotionEvent.ACTION_UP ||
+            actionMasked == MotionEvent.ACTION_CANCEL ||
+            (actionMasked == MotionEvent.ACTION_DOWN && !result)) {
+        stopNestedScroll();
+    }
+
+    return result;
 }
 {% endhighlight %}
