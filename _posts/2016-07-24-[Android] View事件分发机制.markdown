@@ -366,7 +366,34 @@ public boolean onTouchEvent(MotionEvent event) {
 
 然后对上面提到的CheckForTap和CheckForLongPress两个类进行说明：
 
+* CheckForTap，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick函数进行长按检测，在checkForLongClick函数中首先对控件是否支持长按事件进行判断，若支持则使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
+* CheckForLongPress，
+{% highlight bash linenos %}
+private final class CheckForTap implements Runnable {
+    public float x;
+    public float y;
 
+    @Override
+    public void run() {
+        mPrivateFlags &= ~PFLAG_PREPRESSED;
+        setPressed(true, x, y);
+        checkForLongClick(ViewConfiguration.getTapTimeout());
+    }
+}
+
+private void checkForLongClick(int delayOffset) {
+    if ((mViewFlags & LONG_CLICKABLE) == LONG_CLICKABLE) {
+        mHasPerformedLongPress = false;
+
+        if (mPendingCheckForLongPress == null) {
+            mPendingCheckForLongPress = new CheckForLongPress();
+        }
+        mPendingCheckForLongPress.rememberWindowAttachCount();
+        postDelayed(mPendingCheckForLongPress,
+                ViewConfiguration.getLongPressTimeout() - delayOffset);
+    }
+}
+{% endhighlight %}
 
 
 
