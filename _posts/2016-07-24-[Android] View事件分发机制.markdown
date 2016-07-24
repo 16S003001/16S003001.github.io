@@ -359,12 +359,12 @@ public boolean onTouchEvent(MotionEvent event) {
 
 接下来时根据用户的手势进行相应的逻辑判定。
 
-当用户按下即event.getAction为ACTION_DOWN时，进入67行起的一段代码，首先将mHasPerformedLongPress（是否进行了长按操作）置为false，接下来对控件是否处于正在滑动中的容器之中进行判断：
+当用户按下即event.getAction为ACTION_DOWN时，进入67行起的一段代码，首先将mHasPerformedLongPress（是否进行了长按操作）置为false，接下来对控件是否处于可滑动的容器之中进行判断：
 
-* 若否，将mPrivateFlags置为PFLAG_PRESSED，并刷新背景，同时开始使用CheckForLongPress进行长按检测，延时500ms执行监测。
-* 若是，将mPrivateFlags置为PFLAG_PREPRESSED，并开始使用mPendingCheckForTap进行检测（由于）
+* 若是，将mPrivateFlags置为PFLAG_PREPRESSED，并开始使用CheckForTap进行检测，延时100ms（TAP_TIMEOUT）执行（由于控件处于可滑动的容器之中，因此需要判断用户当前的手势是一次点击还是一次滑动，若用户在TAP_TIMEOUT时间间隔内未进行移出控件手势操作，则判定当前手势为一次点击）。
+* 若否，将mPrivateFlags置为PFLAG_PRESSED，并刷新背景，同时开始使用CheckForLongPress进行长按检测，延时500ms执行以判断是否为长按手势。
 
-
+然后对上面提到的CheckForTap和CheckForLongPress两个类进行说明：
 
 
 
