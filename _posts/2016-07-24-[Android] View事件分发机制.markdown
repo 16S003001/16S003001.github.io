@@ -200,7 +200,7 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 
 20-31行是比较重要的一段逻辑。
 
-在第22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
+22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
 
 28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch函数消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
 
@@ -352,3 +352,41 @@ public boolean onTouchEvent(MotionEvent event) {
     return false;
 }
 {% endhighlight %}
+
+7-14行，View被设为disabled时，当用户当前操作为抬起手势并且flag为PRESSED时取消flag的PRESSED标志并刷新背景，同时根据控件是否可点击、是否可长按、是否为上下文按钮返回相应值。
+
+16-20行，若控件使用了Touch代理，则若代理消费了此事件直接返回true。
+
+接下来时根据用户的手势进行相应的逻辑判定。
+
+当用户按下即event.getAction为ACTION_DOWN时，进入67行起的一段代码，首先将mHasPerformedLongPress（是否进行了长按操作）置为false，接下来对控件是否处于正在滑动中的容器之中进行判断：
+＊ 若否，将mPrivateFlags置为PFLAG_PRESSED，并刷新背景，同时开始使用CheckForLongPress进行长按检测，延时500ms执行监测。
+＊ 若是，将mPrivateFlags置为PFLAG_PREPRESSED，
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
