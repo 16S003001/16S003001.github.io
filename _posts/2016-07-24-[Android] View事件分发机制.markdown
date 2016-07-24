@@ -232,136 +232,123 @@ public boolean onTouch(View v, MotionEvent event) {
 
 下面对onTouchEvent函数进行探究。
 
+View.java中的onTouchEvent函数
 {% highlight bash linenos %}
-public void onTouchEvent(MotionEvent event, int nestingLevel) {
-    if (!startEvent(event, nestingLevel, EVENT_TYPE_TOUCH)) {
-        return;
-    }
-
+public boolean onTouchEvent(MotionEvent event) {
+    final float x = event.getX();
+    final float y = event.getY();
+    final int viewFlags = mViewFlags;
     final int action = event.getAction();
-    final boolean newStream = action == MotionEvent.ACTION_DOWN
-            || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_OUTSIDE;
-    if (newStream && (mTouchEventStreamIsTainted || mTouchEventStreamUnhandled)) {
-        mTouchEventStreamIsTainted = false;
-        mTouchEventStreamUnhandled = false;
-        mTouchEventStreamPointers = 0;
-    }
-    if (mTouchEventStreamIsTainted) {
-        event.setTainted(true);
-    }
 
-    try {
-        ensureMetaStateIsNormalized(event.getMetaState());
-
-        final int deviceId = event.getDeviceId();
-        final int source = event.getSource();
-
-        if (!newStream && mTouchEventStreamDeviceId != -1
-                && (mTouchEventStreamDeviceId != deviceId
-                        || mTouchEventStreamSource != source)) {
-            problem("Touch event stream contains events from multiple sources: "
-                    + "previous device id " + mTouchEventStreamDeviceId
-                    + ", previous source " + Integer.toHexString(mTouchEventStreamSource)
-                    + ", new device id " + deviceId
-                    + ", new source " + Integer.toHexString(source));
+    if ((viewFlags & ENABLED_MASK) == DISABLED) {
+        if (action == MotionEvent.ACTION_UP && (mPrivateFlags & PFLAG_PRESSED) != 0) {
+            setPressed(false);
         }
-        mTouchEventStreamDeviceId = deviceId;
-        mTouchEventStreamSource = source;
+        return (((viewFlags & CLICKABLE) == CLICKABLE
+                || (viewFlags & LONG_CLICKABLE) == LONG_CLICKABLE)
+                || (viewFlags & CONTEXT_CLICKABLE) == CONTEXT_CLICKABLE);
+    }
 
-        final int pointerCount = event.getPointerCount();
-        if ((source & InputDevice.SOURCE_CLASS_POINTER) != 0) {
-            switch (action) {
-                case MotionEvent.ACTION_DOWN:
-                    if (mTouchEventStreamPointers != 0) {
-                        problem("ACTION_DOWN but pointers are already down.  "
-                                + "Probably missing ACTION_UP from previous gesture.");
+    if (mTouchDelegate != null) {
+        if (mTouchDelegate.onTouchEvent(event)) {
+            return true;
+        }
+    }
+
+    if (((viewFlags & CLICKABLE) == CLICKABLE ||
+            (viewFlags & LONG_CLICKABLE) == LONG_CLICKABLE) ||
+            (viewFlags & CONTEXT_CLICKABLE) == CONTEXT_CLICKABLE) {
+        switch (action) {
+            case MotionEvent.ACTION_UP:
+                boolean prepressed = (mPrivateFlags & PFLAG_PREPRESSED) != 0;
+                if ((mPrivateFlags & PFLAG_PRESSED) != 0 || prepressed) {
+                    boolean focusTaken = false;
+                    if (isFocusable() && isFocusableInTouchMode() && !isFocused()) {
+                        focusTaken = requestFocus();
                     }
-                    ensureHistorySizeIsZeroForThisAction(event);
-                    ensurePointerCountIsOneForThisAction(event);
-                    mTouchEventStreamPointers = 1 << event.getPointerId(0);
-                    break;
-                case MotionEvent.ACTION_UP:
-                    ensureHistorySizeIsZeroForThisAction(event);
-                    ensurePointerCountIsOneForThisAction(event);
-                    mTouchEventStreamPointers = 0;
-                    mTouchEventStreamIsTainted = false;
-                    break;
-                case MotionEvent.ACTION_MOVE: {
-                    final int expectedPointerCount =
-                            Integer.bitCount(mTouchEventStreamPointers);
-                    if (pointerCount != expectedPointerCount) {
-                        problem("ACTION_MOVE contained " + pointerCount
-                                + " pointers but there are currently "
-                                + expectedPointerCount + " pointers down.");
-                        mTouchEventStreamIsTainted = true;
-                    }
-                    break;
-                }
-                case MotionEvent.ACTION_CANCEL:
-                    mTouchEventStreamPointers = 0;
-                    mTouchEventStreamIsTainted = false;
-                    break;
-                case MotionEvent.ACTION_OUTSIDE:
-                    if (mTouchEventStreamPointers != 0) {
-                        problem("ACTION_OUTSIDE but pointers are still down.");
-                    }
-                    ensureHistorySizeIsZeroForThisAction(event);
-                    ensurePointerCountIsOneForThisAction(event);
-                    mTouchEventStreamIsTainted = false;
-                    break;
-                default: {
-                    final int actionMasked = event.getActionMasked();
-                    final int actionIndex = event.getActionIndex();
-                    if (actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
-                        if (mTouchEventStreamPointers == 0) {
-                            problem("ACTION_POINTER_DOWN but no other pointers were down.");
-                            mTouchEventStreamIsTainted = true;
-                        }
-                        if (actionIndex < 0 || actionIndex >= pointerCount) {
-                            problem("ACTION_POINTER_DOWN index is " + actionIndex
-                                    + " but the pointer count is " + pointerCount + ".");
-                            mTouchEventStreamIsTainted = true;
-                        } else {
-                            final int id = event.getPointerId(actionIndex);
-                            final int idBit = 1 << id;
-                            if ((mTouchEventStreamPointers & idBit) != 0) {
-                                problem("ACTION_POINTER_DOWN specified pointer id " + id
-                                        + " which is already down.");
-                                mTouchEventStreamIsTainted = true;
-                            } else {
-                                mTouchEventStreamPointers |= idBit;
+
+                    if (prepressed) {
+                        setPressed(true, x, y);
+                   }
+
+                    if (!mHasPerformedLongPress && !mIgnoreNextUpEvent) {
+                        removeLongPressCallback();
+
+                        if (!focusTaken) {
+                            if (mPerformClick == null) {
+                                mPerformClick = new PerformClick();
+                            }
+                            if (!post(mPerformClick)) {
+                                performClick();
                             }
                         }
-                        ensureHistorySizeIsZeroForThisAction(event);
-                    } else if (actionMasked == MotionEvent.ACTION_POINTER_UP) {
-                        if (actionIndex < 0 || actionIndex >= pointerCount) {
-                            problem("ACTION_POINTER_UP index is " + actionIndex
-                                    + " but the pointer count is " + pointerCount + ".");
-                            mTouchEventStreamIsTainted = true;
-                        } else {
-                            final int id = event.getPointerId(actionIndex);
-                            final int idBit = 1 << id;
-                            if ((mTouchEventStreamPointers & idBit) == 0) {
-                                problem("ACTION_POINTER_UP specified pointer id " + id
-                                        + " which is not currently down.");
-                                mTouchEventStreamIsTainted = true;
-                            } else {
-                                mTouchEventStreamPointers &= ~idBit;
-                            }
-                        }
-                        ensureHistorySizeIsZeroForThisAction(event);
-                    } else {
-                        problem("Invalid action " + MotionEvent.actionToString(action)
-                                + " for touch event.");
                     }
+
+                    if (mUnsetPressedState == null) {
+                        mUnsetPressedState = new UnsetPressedState();
+                    }
+
+                    if (prepressed) {
+                        postDelayed(mUnsetPressedState,
+                                ViewConfiguration.getPressedStateDuration());
+                    } else if (!post(mUnsetPressedState)) {
+                        mUnsetPressedState.run();
+                    }
+
+                    removeTapCallback();
+                }
+                mIgnoreNextUpEvent = false;
+                break;
+
+            case MotionEvent.ACTION_DOWN:
+                mHasPerformedLongPress = false;
+
+                if (performButtonActionOnTouchDown(event)) {
                     break;
                 }
-            }
-        } else {
-            problem("Source was not SOURCE_CLASS_POINTER.");
+
+                boolean isInScrollingContainer = isInScrollingContainer();
+
+                if (isInScrollingContainer) {
+                    mPrivateFlags |= PFLAG_PREPRESSED;
+                    if (mPendingCheckForTap == null) {
+                        mPendingCheckForTap = new CheckForTap();
+                    }
+                    mPendingCheckForTap.x = event.getX();
+                    mPendingCheckForTap.y = event.getY();
+                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
+                } else {
+                    setPressed(true, x, y);
+                    checkForLongClick(0);
+                }
+                break;
+
+            case MotionEvent.ACTION_CANCEL:
+                setPressed(false);
+                removeTapCallback();
+                removeLongPressCallback();
+                mInContextButtonPress = false;
+                mHasPerformedLongPress = false;
+                mIgnoreNextUpEvent = false;
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                drawableHotspotChanged(x, y);
+
+                if (!pointInView(x, y, mTouchSlop)) {
+                    removeTapCallback();
+                    if ((mPrivateFlags & PFLAG_PRESSED) != 0) {
+                        removeLongPressCallback();
+
+                        setPressed(false);
+                    }
+                }
+                break;
         }
-    } finally {
-        finishEvent();
+
+        return true;
     }
+
+    return false;
 }
 {% endhighlight %}
