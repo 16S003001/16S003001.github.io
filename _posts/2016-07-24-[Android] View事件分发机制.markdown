@@ -366,8 +366,7 @@ public boolean onTouchEvent(MotionEvent event) {
 
 然后对上面提到的CheckForTap和CheckForLongPress两个类进行说明：
 
-* CheckForTap，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick函数进行长按检测，在checkForLongClick函数中首先对控件是否支持长按事件进行判断，若支持则使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
-* CheckForLongPress，
+* CheckForTap，用于检测手势是点击事件还是滑动事件，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick函数进行长按检测，在checkForLongClick函数中首先对控件是否支持长按事件进行判断，若支持首先将mHasPerformedLongPress设为false，然后使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
 {% highlight bash linenos %}
 private final class CheckForTap implements Runnable {
     public float x;
@@ -395,6 +394,43 @@ private void checkForLongClick(int delayOffset) {
 }
 {% endhighlight %}
 
+* CheckForLongPress，用于检测手势是否为长按事件，在该Runnable中会使用performLongClick函数的返回值，在performLongClick中判断是否为该控件设置了OnLongClickListener，如果设置了则将该函数的返回值置为OnLongClickListener的回调函数onLongClick的返回值，若在onLongClick函数中消费了此事件即返回true，那么performLongClick函数也将返回true，那么mHasPerformedLongPress将会被置为true，若onLongClick函数返回false那么mHasPerformedLongPress仍被置为false。
+{% highlight bash linenos %}
+private final class CheckForLongPress implements Runnable {
+    private int mOriginalWindowAttachCount;
+
+    @Override
+    public void run() {
+        if (isPressed() && (mParent != null)
+                && mOriginalWindowAttachCount == mWindowAttachCount) {
+            if (performLongClick()) {
+                mHasPerformedLongPress = true;
+            }
+        }
+    }
+
+    public void rememberWindowAttachCount() {
+        mOriginalWindowAttachCount = mWindowAttachCount;
+    }
+}
+
+public boolean performLongClick() {
+    sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
+
+    boolean handled = false;
+    ListenerInfo li = mListenerInfo;
+    if (li != null && li.mOnLongClickListener != null) {
+        handled = li.mOnLongClickListener.onLongClick(View.this);
+    }
+    if (!handled) {
+        handled = showContextMenu();
+    }
+    if (handled) {
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+    }
+    return handled;
+}
+{% endhighlight %}
 
 
 
