@@ -154,13 +154,10 @@ View.java中的dispatchTouchEvent函数
 
 {% highlight bash linenos %}
 public boolean dispatchTouchEvent(MotionEvent event) {
-    // If the event should be handled by accessibility focus first.
     if (event.isTargetAccessibilityFocus()) {
-        // We don't have focus or no virtual descendant has it, do not handle the event.
         if (!isAccessibilityFocusedViewOrHost()) {
             return false;
         }
-        // We have focus and got the event, then use normal event dispatch.
         event.setTargetAccessibilityFocus(false);
     }
 
@@ -172,12 +169,10 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 
     final int actionMasked = event.getActionMasked();
     if (actionMasked == MotionEvent.ACTION_DOWN) {
-        // Defensive cleanup for new gesture
         stopNestedScroll();
     }
 
     if (onFilterTouchEventForSecurity(event)) {
-        //noinspection SimplifiableIfStatement
         ListenerInfo li = mListenerInfo;
         if (li != null && li.mOnTouchListener != null
                 && (mViewFlags & ENABLED_MASK) == ENABLED
@@ -194,9 +189,6 @@ public boolean dispatchTouchEvent(MotionEvent event) {
         mInputEventConsistencyVerifier.onUnhandledEvent(event, 0);
     }
 
-    // Clean up after nested scrolls if this is the end of a gesture;
-    // also cancel it if we tried an ACTION_DOWN but we didn't want the rest
-    // of the gesture.
     if (actionMasked == MotionEvent.ACTION_UP ||
             actionMasked == MotionEvent.ACTION_CANCEL ||
             (actionMasked == MotionEvent.ACTION_DOWN && !result)) {
