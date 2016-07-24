@@ -200,6 +200,32 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 
 20-31行是比较重要的一段逻辑。
 
-在第22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定调节为 当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
+在第22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
 
 28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch函数消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
+
+这便对应了上面的控制台的函数的调用顺序，下面通过将onTouch函数的返回值设置为true（消费该事件）来验证上述描述。
+
+验证过程
+{% highlight bash linenos %}
+@Override
+public boolean onTouch(View v, MotionEvent event) {
+    switch (event.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+            Log.d(TAG, "onTouch ACTION_DOWN");
+            break;
+        case MotionEvent.ACTION_MOVE:
+            Log.d(TAG, "onTouch ACTION_MOVE");
+            break;
+        case MotionEvent.ACTION_UP:
+            Log.d(TAG, "onTouch ACTION_UP");
+            break;
+    }
+    return true;
+}
+
+07-24 19:21:08.530 20498-20498/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-24 19:21:08.530 20498-20498/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_DOWN
+07-24 19:21:08.540 20498-20498/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_UP
+07-24 19:21:08.540 20498-20498/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_UP
+{% endhighlight %}
