@@ -5,7 +5,7 @@ date:   2016-07-24 18:30:54 +0800
 categories: Android
 ---
 
-本文将主要讨论View和ViewGroup的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关函数调用的过程。
+本文将主要讨论View和ViewGroup的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关方法调用的过程。
 
 CustomButton.java
 {% highlight bash linenos %}
@@ -148,9 +148,9 @@ dispatchTouchEvent
 OnTouchListener中的onTouch
 onTouchEvent
 
-下面跟进View.java中的相关函数。
+下面跟进View.java中的相关方法。
 
-View.java中的dispatchTouchEvent函数
+View.java中的dispatchTouchEvent方法
 {% highlight bash linenos %}
 public boolean dispatchTouchEvent(MotionEvent event) {
     if (event.isTargetAccessibilityFocus()) {
@@ -200,13 +200,12 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 
 20-31行是比较重要的一段逻辑。
 
-22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调函数onTouch的返回值，若onTouch函数返回true则表示该事件已被消费因此result将被置为true，若onTouch函数返回false则表示该事件仍需继续传递因此result将被置为false。
+22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调方法onTouch的返回值，若onTouch方法返回true则表示该事件已被消费因此result将被置为true，若onTouch方法返回false则表示该事件仍需继续传递因此result将被置为false。
 
-28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch函数消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
+28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch方法消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
 
-这便对应了上面的控制台的函数的调用顺序，下面通过将onTouch函数的返回值设置为true（消费该事件）来验证上述描述。
+这便对应了上面的控制台的方法的调用顺序，下面通过将onTouch方法的返回值设置为true（消费该事件）来验证上述描述。
 
-验证过程
 {% highlight bash linenos %}
 @Override
 public boolean onTouch(View v, MotionEvent event) {
@@ -230,9 +229,9 @@ public boolean onTouch(View v, MotionEvent event) {
 07-24 19:21:08.540 20498-20498/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_UP
 {% endhighlight %}
 
-下面对onTouchEvent函数进行探究。
+下面对onTouchEvent方法进行探究。
 
-View.java中的onTouchEvent函数
+View.java中的onTouchEvent方法
 {% highlight bash linenos %}
 public boolean onTouchEvent(MotionEvent event) {
     final float x = event.getX();
@@ -366,7 +365,7 @@ public boolean onTouchEvent(MotionEvent event) {
 
 然后对上面提到的CheckForTap和CheckForLongPress两个类进行说明：
 
-* CheckForTap，用于检测手势是点击事件还是滑动事件，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick函数进行长按检测，在checkForLongClick函数中首先对控件是否支持长按事件进行判断，若支持首先将mHasPerformedLongPress设为false，然后使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
+* CheckForTap，用于检测手势是点击事件还是滑动事件，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick方法进行长按检测，在checkForLongClick方法中首先对控件是否支持长按事件进行判断，若支持首先将mHasPerformedLongPress设为false，然后使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
 {% highlight bash linenos %}
 private final class CheckForTap implements Runnable {
     public float x;
@@ -394,7 +393,7 @@ private void checkForLongClick(int delayOffset) {
 }
 {% endhighlight %}
 
-* CheckForLongPress，用于检测手势是否为长按事件，在该Runnable中会使用performLongClick函数的返回值，在performLongClick中判断是否为该控件设置了OnLongClickListener，如果设置了则将该函数的返回值置为OnLongClickListener的回调函数onLongClick的返回值，若在onLongClick函数中消费了此事件即返回true，那么performLongClick函数也将返回true，那么mHasPerformedLongPress将会被置为true，若onLongClick函数返回false那么mHasPerformedLongPress仍被置为false。
+* CheckForLongPress，用于检测手势是否为长按事件，在该Runnable中会使用performLongClick方法的返回值，在performLongClick中判断是否为该控件设置了OnLongClickListener，如果设置了则将该方法的返回值置为OnLongClickListener的回调方法onLongClick的返回值，若在onLongClick方法中消费了此事件即返回true，那么performLongClick方法也将返回true，那么mHasPerformedLongPress将会被置为true，若onLongClick方法返回false那么mHasPerformedLongPress仍被置为false。
 {% highlight bash linenos %}
 private final class CheckForLongPress implements Runnable {
     private int mOriginalWindowAttachCount;
@@ -432,10 +431,69 @@ public boolean performLongClick() {
 }
 {% endhighlight %}
 
+当用户移动即event.getAction为ACTION_MOVE时，进入99行起的一段代码，当用户滑动时，在102行会判断用户是否滑出控件，如果滑出控件则移除之前设置的CheckForTap（若从用户按下到滑出控件还未到100ms那么CheckForTap不会被执行，即被认为是滑动而不是点击），若超过了100ms则CheckForTap已经执行，mPrivateFlags被置为PFLAG_PRESSED，则进入104行内，移除之前设置的CheckForLongPress，并将mPrivateFlags置为空。
 
+下面看当用户抬起手势即event.getAction为ACTION_UP时的代码，此时进入26行起的一段代码。
 
+30-32行用于获取焦点。
 
+34-36行，若prepressed为true，即我在我们还未检测到事件是一次点击还是一次活动时用户便抬起手势释放了按钮，此时我们仍需刷新背景以向用户显示点击效果，同时设置mPrivateFlags为PFLAG_PRESSED。
 
+38-49行，若mHasPerformedLongPress为false则进入此代码块，mHasPerformedLongPress为false存在两种情况，一种是还未达到长按的默认时长即500ms用户便释放了按钮，此时需要移除长按检测，另一种是达到了长按的默认时长但是长按事件的监听器的回调方法返回值为false，此时mHasPerformedLongPress也为false，在mHasPerformedLongPress为false即没有触发长按事件时会触发点击事件，即调用performClick方法，在此方法中会调用为此控件设置的OnClickListener的回调函数onClick。到这里我们可以看出，如果我们长按控件并且在OnLongClickListener的onLongClick方法中消费了此事件即返回true，那么控件的OnClickListener的回调方法onClick便不会再被调用，在下面的代码中我们在onLongClick方法中返回true，可以看到，onClick方法未被调用。
+
+{% highlight bash linenos %}
+public class MainActivity extends AppCompatActivity implements View.OnTouchListener, View.OnClickListener, View.OnLongClickListener {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Button button = (Button) findViewById(R.id.click);
+        button.setOnTouchListener(this);
+        button.setOnClickListener(this);
+        button.setOnLongClickListener(this);
+    }
+
+    @Override
+    public void onClick(View v) {
+        Log.d(TAG, "onClick");
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        Log.d(TAG, "onLongClick");
+
+        return true;
+    }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                Log.d(TAG, "onTouch ACTION_DOWN");
+                break;
+            case MotionEvent.ACTION_MOVE:
+                Log.d(TAG, "onTouch ACTION_MOVE");
+                break;
+            case MotionEvent.ACTION_UP:
+                Log.d(TAG, "onTouch ACTION_UP");
+                break;
+        }
+        return false;
+    }
+}
+
+07-25 09:57:03.758 28610-28610/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-25 09:57:03.758 28610-28610/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_DOWN
+07-25 09:57:03.758 28610-28610/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_DOWN
+07-25 09:57:04.258 28610-28610/com.guoyonghui.eventdispatch D/MainActivity: onLongClick
+07-25 09:57:04.458 28610-28610/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_UP
+07-25 09:57:04.458 28610-28610/com.guoyonghui.eventdispatch D/MainActivity: onTouch ACTION_UP
+07-25 09:57:04.458 28610-28610/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_UP
+{% endhighlight %}
 
 
 
