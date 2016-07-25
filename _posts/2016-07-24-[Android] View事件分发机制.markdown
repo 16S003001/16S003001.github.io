@@ -5,7 +5,7 @@ date:   2016-07-24 18:30:54 +0800
 categories: Android
 ---
 
-本文将主要讨论View和ViewGroup的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关方法调用的过程。
+本文将主要讨论View的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关方法调用的过程。
 
 CustomButton.java
 {% highlight bash linenos %}
