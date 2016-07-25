@@ -495,8 +495,9 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
 07-25 09:57:04.458 28610-28610/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_UP
 {% endhighlight %}
 
+接下来我们看到51-62行，这部分首先实例化了一个UnsetPressedState，这个类用来取消控件的PFLAG_PRESSED标志并且刷新背景，在之后的判断中，若用户是在100ms内释放了控件，那么需要延时运行该Runnable，否则的话立即运行该Runnable，最后清除之前设置的滑动／点击检测。
 
-
+至此，View类的事件分发机制探索完毕。
 
 
 
