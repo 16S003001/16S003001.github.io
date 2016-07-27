@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "[LEETCODE 337] House Robber III"
+title:  "House Robber III(337)"
 date:   2016-03-13 10:42:55 +0800
 categories: LEETCODE
 ---

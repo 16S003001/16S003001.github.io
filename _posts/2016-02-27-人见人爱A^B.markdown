@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "[HDOJ 2035] 人见人爱A^B"
+title:  "人见人爱A^B(2035)"
 date:   2016-02-27 14:23:17 +0800
 categories: HDOJ
 ---

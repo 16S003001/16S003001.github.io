@@ -1,64 +1,63 @@
 ---
 layout: post
-title:  "[Android] View事件分发机制"
+title:  "View事件分发机制"
 date:   2016-07-24 18:30:54 +0800
-categories: Android
+categories: Android View
 ---
 
 本文将主要讨论View的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关方法调用的过程。
 
 CustomButton.java
-{% highlight bash linenos %}
-public class CustomButton extends Button {
 
-    private static final String TAG = CustomButton.class.getSimpleName();
+    public class CustomButton extends Button {
 
-    public CustomButton(Context context) {
-        super(context);
-    }
+        private static final String TAG = CustomButton.class.getSimpleName();
 
-    public CustomButton(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public CustomButton(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                Log.d(TAG, "dispatchTouchEvent ACTION_DOWN");
-                break;
-            case MotionEvent.ACTION_MOVE:
-                Log.d(TAG, "dispatchTouchEvent ACTION_MOVE");
-                break;
-            case MotionEvent.ACTION_UP:
-                Log.d(TAG, "dispatchTouchEvent ACTION_UP");
-                break;
+        public CustomButton(Context context) {
+            super(context);
         }
 
-        return super.dispatchTouchEvent(event);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                Log.d(TAG, "onTouchEvent ACTION_DOWN");
-                break;
-            case MotionEvent.ACTION_MOVE:
-                Log.d(TAG, "onTouchEvent ACTION_MOVE");
-                break;
-            case MotionEvent.ACTION_UP:
-                Log.d(TAG, "onTouchEvent ACTION_UP");
-                break;
+        public CustomButton(Context context, AttributeSet attrs) {
+            super(context, attrs);
         }
-        return super.onTouchEvent(event);
+
+        public CustomButton(Context context, AttributeSet attrs, int defStyleAttr) {
+            super(context, attrs, defStyleAttr);
+        }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent event) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    Log.d(TAG, "dispatchTouchEvent ACTION_DOWN");
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    Log.d(TAG, "dispatchTouchEvent ACTION_MOVE");
+                    break;
+                case MotionEvent.ACTION_UP:
+                    Log.d(TAG, "dispatchTouchEvent ACTION_UP");
+                    break;
+            }
+
+            return super.dispatchTouchEvent(event);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    Log.d(TAG, "onTouchEvent ACTION_DOWN");
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    Log.d(TAG, "onTouchEvent ACTION_MOVE");
+                    break;
+                case MotionEvent.ACTION_UP:
+                    Log.d(TAG, "onTouchEvent ACTION_UP");
+                    break;
+            }
+            return super.onTouchEvent(event);
+        }
     }
-}
-{% endhighlight %}
 
 MainActivity.java
 {% highlight bash linenos %}
@@ -200,11 +199,11 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 
 20-31行是比较重要的一段逻辑。
 
-22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空（当没有给该控件设置此类型监听时判断为false）、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调方法onTouch的返回值，若onTouch方法返回true则表示该事件已被消费因此result将被置为true，若onTouch方法返回false则表示该事件仍需继续传递因此result将被置为false。
+22行，判断ListenerInfo是否为空、为该控件设置的OnTouchListener是否为空(当没有给该控件设置此类型监听时判断为false)、该控件是否被置为enable，最后一个判定条件为当控件的OnTouchListener不为空时回调方法onTouch的返回值，若onTouch方法返回true则表示该事件已被消费因此result将被置为true，若onTouch方法返回false则表示该事件仍需继续传递因此result将被置为false。
 
 28－30行，在这部分可以看到，若事件被OnTouchListener中的onTouch方法消费，那么result被置为true，则onTouchEvent方法不会被调用，而若事件未在上一步中被消费，则result被置为false，此时onTouchEvent方法被调用，并根据该方法的返回值判断是否对result进行设置，若onTouchEvent返回true则表示事件被该方法消费，result被置为true，否则result仍保持false。
 
-这便对应了上面的控制台的方法的调用顺序，下面通过将onTouch方法的返回值设置为true（消费该事件）来验证上述描述。
+这便对应了上面的控制台的方法的调用顺序，下面通过将onTouch方法的返回值设置为true(消费该事件)来验证上述描述。
 
 {% highlight bash linenos %}
 @Override
@@ -358,14 +357,14 @@ public boolean onTouchEvent(MotionEvent event) {
 
 接下来时根据用户的手势进行相应的逻辑判定。
 
-当用户按下即event.getAction为ACTION_DOWN时，进入67行起的一段代码，首先将mHasPerformedLongPress（是否进行了长按操作）置为false，接下来对控件是否处于可滑动的容器之中进行判断：
+当用户按下即event.getAction为ACTION_DOWN时，进入67行起的一段代码，首先将mHasPerformedLongPress(是否进行了长按操作)置为false，接下来对控件是否处于可滑动的容器之中进行判断：
 
-* 若是，将mPrivateFlags置为PFLAG_PREPRESSED，并开始使用CheckForTap进行检测，延时100ms（TAP_TIMEOUT）执行（由于控件处于可滑动的容器之中，因此需要判断用户当前的手势是一次点击还是一次滑动，若用户在TAP_TIMEOUT时间间隔内未进行移出控件手势操作，则判定当前手势为一次点击）。
+* 若是，将mPrivateFlags置为PFLAG_PREPRESSED，并开始使用CheckForTap进行检测，延时100ms(TAP_TIMEOUT)执行(由于控件处于可滑动的容器之中，因此需要判断用户当前的手势是一次点击还是一次滑动，若用户在TAP_TIMEOUT时间间隔内未进行移出控件手势操作，则判定当前手势为一次点击)。
 * 若否，将mPrivateFlags置为PFLAG_PRESSED，并刷新背景，同时开始使用CheckForLongPress进行长按检测，延时500ms执行以判断是否为长按手势。
 
 然后对上面提到的CheckForTap和CheckForLongPress两个类进行说明：
 
-* CheckForTap，用于检测手势是点击事件还是滑动事件，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick方法进行长按检测，在checkForLongClick方法中首先对控件是否支持长按事件进行判断，若支持首先将mHasPerformedLongPress设为false，然后使用CheckForLongPress进行长按检测，延时400ms进行（由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms）。
+* CheckForTap，用于检测手势是点击事件还是滑动事件，使用postDelayed延时100ms执行，若用户未在该时间段内移出当前点击控件则被认定为是一次点击事件，该Runnable得到执行，在CheckForTap中会取消mPrivateFlags的PFLAG_PREPRESSED标志而将其设置为PFLAG_PRESSED，并刷新控件背景，同时会使用checkForLongClick方法进行长按检测，在checkForLongClick方法中首先对控件是否支持长按事件进行判断，若支持首先将mHasPerformedLongPress设为false，然后使用CheckForLongPress进行长按检测，延时400ms进行(由于DEFAULT_LONG_PRESS_TIMEOUT即默认的长按时长为500ms，而之前进行滑动／点击检测已经耗费100ms，因此若为点击事件再执行长按检测，需去除之前耗费的100ms，即延时400ms)。
 {% highlight bash linenos %}
 private final class CheckForTap implements Runnable {
     public float x;
@@ -431,7 +430,7 @@ public boolean performLongClick() {
 }
 {% endhighlight %}
 
-当用户移动即event.getAction为ACTION_MOVE时，进入99行起的一段代码，当用户滑动时，在102行会判断用户是否滑出控件，如果滑出控件则移除之前设置的CheckForTap（若从用户按下到滑出控件还未到100ms那么CheckForTap不会被执行，即被认为是滑动而不是点击），若超过了100ms则CheckForTap已经执行，mPrivateFlags被置为PFLAG_PRESSED，则进入104行内，移除之前设置的CheckForLongPress，并将mPrivateFlags置为空。
+当用户移动即event.getAction为ACTION_MOVE时，进入99行起的一段代码，当用户滑动时，在102行会判断用户是否滑出控件，如果滑出控件则移除之前设置的CheckForTap(若从用户按下到滑出控件还未到100ms那么CheckForTap不会被执行，即被认为是滑动而不是点击)，若超过了100ms则CheckForTap已经执行，mPrivateFlags被置为PFLAG_PRESSED，则进入104行内，移除之前设置的CheckForLongPress，并将mPrivateFlags置为空。
 
 下面看当用户抬起手势即event.getAction为ACTION_UP时的代码，此时进入26行起的一段代码。
 

@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "[HDOJ 2029] Palindromes easy version"
+title:  "Palindromes easy version(2029)"
 date:   2016-02-27 12:48:15 +0800
 categories: HDOJ
 ---

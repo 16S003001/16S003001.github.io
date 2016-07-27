@@ -9,5 +9,11 @@
 title: Guomato
 baseurl: "" # the subpath of your site, e.g. /blog
 
+gems: [jekyll-paginate]
+
 # Build settings
 markdown: kramdown
+highlighter: payments
+paginate: 8
+paginate_path: "/blog/page:num/"
+

@@ -13,6 +13,11 @@ layout: default
 
         <h2>
           <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
+          <h4>
+            {% for category in post.categories %}
+              <span class="label label-success">{{ category }}</span>
+            {% endfor %}
+          </h4>
         </h2>
       </li>
     {% endfor %}

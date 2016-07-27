@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "[HDOJ 2021] 发工资咯: )"
+title:  "发工资咯: )(2021)"
 date:   2016-02-27 11:57:30 +0800
 categories: HDOJ
 ---

@@ -12,21 +12,15 @@
 
 .site-title {
     font-size: 26px;
-    font-weight: 300;
     line-height: 56px;
     letter-spacing: -1px;
     margin-bottom: 0;
     float: left;
-    cursor: pointer;
 
     &,
     &:visited {
         color: $grey-color-dark;
     }
-}
-
-.site-title:hover {
-    text-decoration: none;
 }
 
 .site-nav {
@@ -40,22 +34,17 @@
     .page-link {
         color: $text-color;
         line-height: $base-line-height;
-        cursor: pointer;
 
-        // Gaps between nav items, but not on the last one
-        &:not(:last-child) {
-            margin-right: 20px;
+        // Gaps between nav items, but not on the first one
+        &:not(:first-child) {
+            margin-left: 20px;
         }
-    }
-
-    .page-link:hover {
-        text-decoration: none;
     }
 
     @include media-query($on-palm) {
         position: absolute;
         top: 9px;
-        right: $spacing-unit / 2;
+        right: 30px;
         background-color: $background-color;
         border: 1px solid $grey-color-light;
         border-radius: 5px;
@@ -93,15 +82,39 @@
         .page-link {
             display: block;
             padding: 5px 10px;
-
-            &:not(:last-child) {
-                margin-right: 0;
-            }
-            margin-left: 20px;
         }
     }
 }
 
+.site-top-bar {
+    display: block;
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    width: 60px;
+    height: 40px;
+    border: 1px solid #888;
+    border-radius: 5px;
+    background: WHITE;
+    text-align: center;
+    line-height: 40px;
+    font-size: 15px;
+}
+
+.site-top-bar:link {
+    color: #888;
+    text-decoration: none;
+}
+
+.site-top-bar:visited {
+    color: #888;
+    text-decoration: none;
+}
+
+.site-top-bar:hover {
+    color: #888;
+    text-decoration: none;
+}
 
 
 /**
@@ -194,6 +207,10 @@
     }
 }
 
+.post-list a:hover {
+    text-decoration: none;
+}
+
 .post-meta {
     font-size: $small-font-size;
     color: $grey-color;
@@ -202,11 +219,6 @@
 .post-link {
     display: block;
     font-size: 24px;
-    cursor: pointer;
-}
-
-.post-link:hover {
-    text-decoration: none;
 }
 
 
@@ -230,9 +242,12 @@
 
 .post-content {
     margin-bottom: $spacing-unit;
+    word-break: break-all;
 
     h2 {
         font-size: 32px;
+        margin-top: 30px;
+        margin-bottom: 30px;
 
         @include media-query($on-laptop) {
             font-size: 28px;
@@ -241,6 +256,8 @@
 
     h3 {
         font-size: 26px;
+        margin-top: 30px;
+        margin-bottom: 30px;
 
         @include media-query($on-laptop) {
             font-size: 22px;
@@ -249,9 +266,21 @@
 
     h4 {
         font-size: 20px;
+        margin-top: 30px;
+        margin-bottom: 30px;
 
         @include media-query($on-laptop) {
             font-size: 18px;
         }
+    }
+
+    p {
+        line-height: 25px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+
+    li {
+        line-height: 25px;
     }
 }

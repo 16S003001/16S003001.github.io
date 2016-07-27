@@ -1,18 +1,12 @@
 <!DOCTYPE html>
 <html>
-
   {% include head.html %}
+<body class="home-template">
+  {% include header.html %}
+  <div class="container bs-docs-container">{{ content }}</div>
+  {% include footer.html %}
 
-  <body>
-
-    {% include header.html %}
-
-    <div class="page-content">
-      <div class="wrapper">
-        {{ content }}
-      </div>
-    </div>
-
-  </body>
+  <a class="site-top-bar" href="#">TOP</a>
+</body>
 
 </html>
