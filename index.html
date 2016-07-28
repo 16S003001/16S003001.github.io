@@ -2,19 +2,29 @@
 layout: default
 ---
 <div class="home">
-
-  <ul class="post-list">
-    {% for post in site.posts %}
-    <li>
-      <span class="post-meta">{{ post.date | date: "%Y/%m/%-d" }}</span>
-      {% for category in post.categories %}
-      <span class="post-meta">| {{ category }}</span>
-      {% endfor %}
-      <h2>
-        <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-      </h2>
-    </li>
+  {% assign categories = site.categories | sort %}
+  <div>
+    {% for category in categories %}
+    <a href="#{{ category[0] }}">{{ category | first | slugify}}({{category | last | size}})</a>
     {% endfor %}
-  </ul>
+  </div>
 
-</div>
+  <div class="page-content-sorted">
+    {% for category in categories %}
+    <h2 id="{{ category[0] }}">
+      {{ category | first | slugify}}
+      <span>{{category | last | size}}</span>
+    </h2>
+    <ul>
+      {% for post in site.posts %}
+    {% if post.categories contains category[0] %}
+      <li>
+        <a href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>  <span>{{ post.date | date: "%Y/%m/%-d" }}</span>
+      </li>
+        {% endif %}
+  {% endfor %}
+      </ul>
+      {% endfor %}
+    </div>
+
+  </div>

@@ -1,19 +1,33 @@
-<header class="site-header">
+<header>
 
-  <div class="wrapper">
-
-    <a class="site-title" href="{{ site.baseurl }}/">Home</a>
-
-    <nav class="site-nav">
-      <div class="trigger">
-        {% for my_page in site.pages %}
-          {% if my_page.title %}
-        <a class="page-link" href="{{ my_page.url | prepend: site.baseurl }}">{{ my_page.title }}</a>
-        {% endif %}
-        {% endfor %}
+  <div class="header">
+    <div class="container">
+      <div class="logo-text">
+        <a href="{{ site.baseurl }}/">Guomato</a>
       </div>
-    </nav>
-
+      <div class="description-text">
+        <p>
+          {{ site.description }}
+        </p>
+      </div>
+    </div>
   </div>
+  <!-- <div class="wrapper">
 
+  <h1>Guomato</h1>
+
+  <a class="site-title" href="{{ site.baseurl }}/">Home</a>
+
+  <nav class="site-nav">
+    <div class="trigger">
+      {% for my_page in site.pages %}
+          {% if my_page.title %}
+      <a class="page-link" href="{{ my_page.url | prepend: site.baseurl }}">{{ my_page.title }}</a>
+      {% endif %}
+        {% endfor %}
+    </div>
+  </nav>
+
+</div>
+-->
 </header>
