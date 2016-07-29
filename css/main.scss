@@ -3,20 +3,20 @@
 ---
 @charset "utf-8";
 
-
-
 // Our variables
 $base-font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
 $base-font-size:   14px;
-$base-font-weight: 100;
+$base-font-weight: 400;
 $small-font-size:  $base-font-size * 0.875;
 $base-line-height: 1.5;
 
-$spacing-unit:     16px;
+$spacing-unit:     30px;
 
-$text-color:       #111;
+$text-color:       #000000;
 $background-color: #fdfdfd;
 $brand-color:      #2a7ae2;
+
+$white-color:      #ffffff;
 
 $grey-color:       #828282;
 $grey-color-light: lighten($grey-color, 40%);
@@ -27,8 +27,6 @@ $content-width:    1000px;
 
 $on-palm:          600px;
 $on-laptop:        800px;
-
-
 
 // Use media queries like this:
 // @include media-query($on-palm) {
@@ -42,8 +40,6 @@ $on-laptop:        800px;
         @content;
     }
 }
-
-
 
 // Import partials from `sass_dir` (defaults to `_sass`)
 @import
