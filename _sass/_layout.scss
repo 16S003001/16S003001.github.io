@@ -237,6 +237,10 @@
 
 .post-content {
     margin-bottom: $spacing-unit;
+    
+    p, li {
+        line-height: 1.8;
+    }
 
     h2 {
         font-size: 32px;
