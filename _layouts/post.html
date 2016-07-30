@@ -9,9 +9,10 @@ layout: default
         {% if page.author %}by <span>{{ page.author }} </span>{% endif %}
         {% if page.date %}at {{ page.date | date: "%Y/%m/%d %H:%M" }} | {% endif %}
         {% if page.categories %}
-        {% for category in page.categories %}
+        {% assign categories = page.categories | sort %}
+        {% for category in categories %}
             <span>{{ category }}</span>
-            {% if category != page.categories.last %} • {% endif %}
+            {% if category != categories.last %} • {% endif %}
         {% endfor %}
         {% endif %}
     </p>
