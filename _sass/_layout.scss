@@ -11,7 +11,7 @@
     text-align: center;
     height: 438px;
     color: $white-color;
-    margin-bottom: 50px;
+    margin-bottom: 30px;
 }
 
 .site-info {
@@ -123,6 +123,11 @@
 .site-footer {
     border-top: 1px solid $grey-color-light;
     padding: $spacing-unit 0;
+    text-align: center;
+    
+    p {
+        color: $grey-color;
+    }
 }
 
 .footer-heading {
@@ -203,15 +208,10 @@
 }
 
 .post-list {
-    float: right;
-    width: 70%;
-    margin-top: 20px;
-    
-    > div {
-        margin-bottom: $spacing-unit * 2;
-    }
+    margin-top: $spacing-unit * 2;
     
     h2 {
+        margin-top: $spacing-unit * 1.5;
         margin-bottom: 20px;
          
         span {
@@ -237,8 +237,6 @@
 }
 
 .category-list {
-    float: left;
-    max-width: 20%;
     padding: 20px;
     border: 1px solid $grey-color-light;
     border-radius: 5px;

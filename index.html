@@ -6,13 +6,12 @@ layout: default
   <div class="category-list">
   <h2>Category</h2>
     {% for category in categories %}
-    <a href="#{{ category[0] }}">{{ category[0] }}({{category | last | size}})</a><br>
+    <a href="#{{ category[0] }}">{{ category[0] }}({{category | last | size}})</a>
     {% endfor %}
   </div>
     
   <div class="post-list">
     {% for category in categories %}
-      <div>
     <h2 id="{{ category[0] }}">
       {{ category[0] }}
       <span>{{category | last | size}}</span>
@@ -26,7 +25,6 @@ layout: default
         {% endif %}
   {% endfor %}
       </ul>
-      </div>
       {% endfor %}
           
     </div>
