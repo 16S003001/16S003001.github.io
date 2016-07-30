@@ -1,23 +1,32 @@
 ---
 layout: default
 ---
-
-<div class="home">
-
-  <h1 class="page-heading">Posts</h1>
-
-  <ul class="post-list">
-    {% for post in site.posts %}
-      <li>
-        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
-
-        <h2>
-          <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-        </h2>
-      </li>
+    
+  {% assign categories = site.categories | sort %}
+  <div class="category-list">
+  <h2>Category</h2>
+    {% for category in categories %}
+    <a href="#{{ category[0] }}">{{ category[0] }}({{category | last | size}})</a><br>
     {% endfor %}
-  </ul>
-
-  <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | prepend: site.baseurl }}">via RSS</a></p>
-
-</div>
+  </div>
+    
+  <div class="post-list">
+    {% for category in categories %}
+      <div>
+    <h2 id="{{ category[0] }}">
+      {{ category[0] }}
+      <span>{{category | last | size}}</span>
+    </h2>
+    <ul>
+      {% for post in site.posts %}
+    {% if post.categories contains category[0] %}
+      <li>
+        <a href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>  <span>{{ post.date | date: "%Y/%m/%-d" }}</span>
+      </li>
+        {% endif %}
+  {% endfor %}
+      </ul>
+      </div>
+      {% endfor %}
+          
+    </div>

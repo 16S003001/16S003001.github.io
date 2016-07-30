@@ -2,7 +2,8 @@
  * Site header
  */
 .site-header {
-    background-image: url(http://static.bootcss.com/expo/img/d/dd/2de797545de56274f03a5920eb3a1.jpg);
+//    background-image: url(http://static.bootcss.com/expo/img/d/dd/2de797545de56274f03a5920eb3a1.jpg);
+    background-image: url(https://ooo.0o0.ooo/2016/07/29/579c09ca1243f.jpg);
     background-repeat: no-repeat;
     background-position: center 0;
     -webkit-background-size: cover;
@@ -197,13 +198,50 @@
     font-size: 20px;
 }
 
+.post-category {
+    margin-bottom: 50px;
+}
+
 .post-list {
-    margin-left: 0;
-    list-style: none;
+    float: right;
+    width: 70%;
+    margin-top: 20px;
     
-    > li {
-        margin-bottom: $spacing-unit;
+    > div {
+        margin-bottom: $spacing-unit * 2;
     }
+    
+    h2 {
+        margin-bottom: 20px;
+         
+        span {
+            color: #ffffff;
+            background-color: #bcbcbc;
+            border-radius: 5px;
+            padding: 2px 10px 2px 10px;
+            font-size: 50%;
+            font-weight: bold;
+            vertical-align: middle;
+        }
+    }
+
+    li {
+        margin: 15px 0px 15px 20px;
+        font-size: 120%; 
+        
+        span {
+            font-size: 80%;
+            color: $grey-color;
+        }
+    }
+}
+
+.category-list {
+    float: left;
+    max-width: 20%;
+    padding: 20px;
+    border: 1px solid $grey-color-light;
+    border-radius: 5px;
 }
 
 .post-meta {

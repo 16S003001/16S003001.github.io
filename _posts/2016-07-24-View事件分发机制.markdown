@@ -3,7 +3,7 @@ layout: post
 title:  "View事件分发机制"
 date:   2016-07-24 18:30:54 +0800
 author: Guomato
-categories: Android
+categories: Android View
 ---
 
 本文将主要讨论View的事件分发机制，首先，通过自定义继承自Button的按钮控件来观察事件分发相关方法调用的过程。

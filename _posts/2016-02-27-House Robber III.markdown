@@ -2,7 +2,7 @@
 layout: post
 title:  "House Robber III(337)"
 date:   2016-03-13 10:42:55 +0800
-categories: LEETCODE
+categories: LeetCode
 ---
 ### __问题描述__
 > The thief has found himself a new place for his thievery again. There is only one entrance to this area, called the "root." Besides the root, each house has one and only one parent house. After a tour, the smart thief realized that "all houses in this place forms a binary tree". It will automatically contact the police if two directly-linked houses were broken into on the same night.

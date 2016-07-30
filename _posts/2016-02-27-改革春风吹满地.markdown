@@ -2,7 +2,7 @@
 layout: post
 title:  "改革春风吹满地(2036)"
 date:   2016-02-27 19:08:32 +0800
-categories: HDOJ
+categories: Hdoj
 ---
 ### __问题描述__
 > “ 改革春风吹满地，不会AC没关系，实在不行回老家，还有一亩三分地。谢谢!（乐队奏乐）”

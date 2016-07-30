@@ -2,7 +2,7 @@
 layout: post
 title:  "进制转换(2031)"
 date:   2016-02-27 13:21:00 +0800
-categories: HDOJ
+categories: Hdoj
 ---
 ### __问题描述__
 > 输入一个十进制数N，将它转换成R进制数输出。
