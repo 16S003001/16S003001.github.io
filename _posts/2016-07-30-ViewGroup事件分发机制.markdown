@@ -426,7 +426,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 那么，在这里有一个问题，***当我们点击屏幕并在屏幕上滑动并释放时，为什么上面的控制台输出并无ACTION_MOVE以及ACTION_UP的相关信息输出？***
 
-这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为ViewGroup方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，***若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来***，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
+这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为onTouchEvent方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，***若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来，原因后面会讲***，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
 
 {% highlight ruby linenos %}
 public boolean onTouchEvent(MotionEvent event) {
@@ -463,7 +463,7 @@ public boolean onTouchEvent(MotionEvent event) {
 
 ## ***重写onInterceptTouchEvent方法***
 
-### ***拦截ACTION_DOWN事件***
+#### ***拦截ACTION_DOWN事件***
 
 {% highlight ruby linenos %}
 @Override
@@ -491,7 +491,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 在第29行开始的if-else代码块中，由于我们拦截了ACTION_DOWN事件，因此intercepted被置为true，那么58行开始的if代码块由于intercepted为true所以不会进入，直接跳转到163行，由于mFirstTouchTarget为null，因此直接调用ViewGroup的onTouchEvent方法，同时由于ViewGroupw未设置clickable、longClickable、contextClickable属性，因此handled会被置为false并向上返回，所以后续的ACTION_MOVE、ACTION_UP等事件不会再传递给ViewGroup。
 
-### ***拦截ACTION_MOVE事件***
+#### ***拦截ACTION_MOVE事件***
 
 {% highlight ruby linenos %}
 @Override
@@ -533,7 +533,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 首先，从控制台输出可以看到，由于未对ACTION_DOWN事件进行拦截，因此ACTION_DOWN事件正常分发。再看到ACTION_MOVE部分，第一次ACTION_MOVE事件，一次调用了dispatchTouchEvent、onInterceptTouchEvent，跟进代码，由于ACTION_DOWN正常分发，因此mFirstTouchTarget被设置为非空，因此在分发ACTION_MOVE时，依然进入29行的if代码块，调用onInterceptTouchEvent方法并将intercepted置为true，那么58行的if代码块便不会再进入，因此直接进入到163行的if-else中，由于mFirstTouchTarget此时不会空，因此进入到else代码块，在对链表的遍历中，由于intercepted为true，因此cancelChild会被置为true，所以链表中的所有节点都将会接收到一个ACTION_CANCEL事件，同时被从链表中删除，经过此步，mFirstTouchTarget被置为空，那么在接收到下一个ACTION_MOVE事件的时候，由于mFirstTouchTarget已经为空，因此不再调用onInterceptTouchEvent方法。intercepted直接被置为true，所以直接进入163行的if代码块并最终调用ViewGroup的onTouchEvent方法，对于最后的ACTION_UP事件同理。
 
-### ***拦截ACTION_UP事件***
+#### ***拦截ACTION_UP事件***
 
 {% highlight ruby linenos %}
 @Override
@@ -570,43 +570,70 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 与前面类似，ACTION_DOWN与ACTION_MOVE均正常分发，最后的ACTION_UP事件由于被拦截，经历了和上一部分中描述类似的过程。
 
+## ***讲一讲为什么若View/ViewGroup未消费ACTION_DOWN事件则后续的事件也不会分发给它***
+
+首先做个测试。
+{% highlight ruby linenos%}
+<com.guoyonghui.eventdispatch.view.CustomLinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:clickable="true"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.guoyonghui.eventdispatch.MainActivity">
+
+    <com.guoyonghui.eventdispatch.view.CustomButton
+        android:id="@+id/click"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:longClickable="true"
+        android:text="@string/app_name"
+        android:textAllCaps="false"/>
+
+</com.guoyonghui.eventdispatch.view.CustomLinearLayout>
+
+@Override
+public boolean onTouchEvent(MotionEvent event) {
+switch (event.getAction()) {
+    case MotionEvent.ACTION_DOWN:
+        Log.d(TAG, "onTouchEvent ACTION_DOWN");
+        return false;
+    case MotionEvent.ACTION_MOVE:
+        Log.d(TAG, "onTouchEvent ACTION_MOVE");
+        break;
+    case MotionEvent.ACTION_UP:
+        Log.d(TAG, "onTouchEvent ACTION_UP");
+        break;
+    case MotionEvent.ACTION_CANCEL:
+        Log.d(TAG, "onTouchEvent ACTION_CANCEL");
+        break;
+}
+
+return super.onTouchEvent(event);
+}
+
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomActivity: onTouch ACTION_DOWN
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_DOWN
+07-31 14:01:57.274 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_DOWN
+07-31 14:01:57.294 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 14:01:57.294 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_MOVE
+07-31 14:01:57.294 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_UP
+07-31 14:01:57.294 19605-19605/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_UP
+{% endhighlight %}
+
+更改一下布局文件，给CustomLinearLayout增加`android:clickable="true"`属性，使其能够在onTouchEvent中处理事件并向上返回true，同时，重写CustomButton的onTouchEvent方法，当处理的事件为ACTION_DOWN时返回false，最后贴出控制台输出。
+
+首先，经过上面的叙述我们已经可以知道，需要ViewGroup向下分发事件的子视图对象维护在一个TouchTarget类型的链表中，子视图作为目标对象被加入到链表中当且仅当子视图的dispatchTouchEvent在分发ACTION_DOWN事件时返回true（即消费了ACTION_DOWN事件），那么，当子视图未消费ACTION_DOWN事件时，它便不会被加入到链表之中，而后续事件如ACTION_MOVE、ACTION_UP等都是通过遍历链表来进行分发（如果链表不为空的话，为空则直接将事件分发给ViewGroup的onTouchEvent），因此未消费ACTION_DOWN的子视图是得不到后续事件的分发的。
+
+ViewGroup是View的子类，因此若ViewGroup的dispatchTouchEvent在分发ACTION_DOWN事件时返回false未进行消费，同样得不到后续事件，原理和上面是一样的，和View的区别在于View只需判断自己是否消费了该事件，而ViewGroup需判断是否有子视图消费了该事件，若有则代表自己也消费了此事件，若没有再去调用自己的onTouchEvent来判断自己是否消费了该事件。
+
 至此，对ViewGroup的事件分发机制便有了一个大致的了解，嗨呀。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
