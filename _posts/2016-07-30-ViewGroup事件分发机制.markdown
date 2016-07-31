@@ -347,30 +347,236 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 }
 {% endhighlight %}
 
-19-25行，首先我们可以很容易知道，用户触摸屏幕的一系列手势的开始一定是ACTION_DOWN手势，这一部分代码便是在一系列手势开始的时候进行一些初始化工作，跟进cancelAndClearTouchTargets方法，该方法中涉及一个叫做TouchTarget的类，从类名中我们可以看出这个类的作用大致是充当手势的目标对象，该类中维持了一个TouchTarget类型的next字段，因此我认为该类类似于一个链表，链表中的第一个节点为事件应第一个分发的视图，其后的每个节点会依次得到该事件。在cancelAndClearTouchTargets方法中，依次向链表中的每一个对象分发了一个ACTION_CANCEL事件，之后通过一个循环将链表中的节点重置，并将mFirstTouchTarget字段置为null，之后在该方法中会调用resetTouchState方法为mGroupFlags取消FLAG_DISALLOW_INTERCEPT标志，通过在ACTION_DOWN手势下调用cancelAndClearTouchTargets完成了一些初始化的工作。
+{% highlight ruby linenos %}
+public boolean onInterceptTouchEvent(MotionEvent ev) {
+    return false;
+}
+{% endhighlight %}
 
-28-42行，当用户按下或者mFirstTouchTarget不为null的时候进入此代码块，分两种情况讨论：
+如果不进行重写，ViewGroup中的onInterceptTouchEvent很简单，直接返回false，对任何事件都是拦截失败相当于不做拦截。
 
-* 若是用户刚刚按下时，此时mGroupFlags经过cancelAndClearTouchTargets方法的调用已经取消FLAG_DISALLOW_INTERCEPT标志，因此disallowIntercept会被置为false，即允许拦截，因此此时onInterceptTouchEvent方法一定会被调用，intercepted字段被置为该方法的返回值。
-* 若是由mFirstTouchTarget不为null进入，TODO
+## ***在不拦截任何事件以及具有可接收事件的子视图的情况下***
 
-51-58行，首先对canceled字段进行赋值，若事件为ACTION_CANCEL或之前已经设置过了PFLAG_CANCEL_NEXT_UP_EVENT标志则将canceled置为true，否则置为false，在第58行根据canceled和intercepted字段的值判断是否进入代码块，当且仅当ViewGroup既没有拦截该事件同时该事件不是一个cancel事件时才进入if代码块，否则进入else代码块。
+#### ***首先讨论ACTION_DOWN事件***
 
-81-82行，两行代码用于获取用户手势的横纵坐标。
+用户一系列触控事件的开始是ACTION_DOWN事件，在第19-25行进行了ACTION_DOWN事件的一些初始化工作，这里涉及到一个叫做TouchTarget的类，从类名中我们可以大致看出，这是一个事件分发的目标类，而通过观察该类中的字段不难得知该类类似于一个链表，从表头到表尾的节点会依次接收事件分发，类中的child字段用于保存对应的子视图，next字段用于保存下一节点。通过调用cancelAndClearTouchTargets和resetTouchState方法可知，这几行代码的主要工作如下：
 
-88-89行，对该ViewGroup的子View进行扫描。
+* 将链表重置并将表头mFirstTouchTarget置为空。
+* 取消mGroupFlags的FLAG_DISALLOW_INTERCEPT标志，允许进行拦截。
 
-107-111行，调用了两个方法，canViewReceivePointerEvents和isTransformedTouchPointInView方法，第一个方法用于判断子视图是否可见以及是否设置了动画，若不可见且未设置动画则返回false，其余情况返回true。第二个方法用于判断用户手势的坐标点是否在子视图所处的位置内，若子视图处于该位置中则返回true，否则返回false。根据if的条件我们可以看到，若子视图是不可见的且未设置动画或者子视图的范围并不包括手势点时，子视图不应该接收事件分发，因此直接continue到下一个子视图。
+接下来看到29-42行，此时mFirstTouchTarget已经被我们置为空，但由于此时事件为ACTION_DOWN因此，进入if代码块，易知disallowIntercept字段为false，所以此时会调用onInterceptTouchEvent方法，由于现在我们并未重写该方法即未做任何拦截，因此intercepted字段将被置为false。
 
-113-119行，根据子视图从TouchTarget链表中查找相应的对象，当手势刚刚开始发生时，由于mFirstTouchTarget为null，因此此时newTouchTarget一定为null。
+51-57行，canceled被置为false，同时设置了两个变量newTouchTarget与alreadyDispatchedToNewTouchTarget，其作用如下：
 
-122-141行，这一段中调用了dispatchTransformedTouchEvent方法，若子视图不为null并且子视图最终消费了此事件则进入代码块，在代码块中为当前的子视图创建TouchTarget并插入链表头，同时将mFirstTouchTarget置为表头，之后跳出循环，即一旦找到可以接收事件的视图则停止对子视图的扫描（由于在布局文件中后布局的视图会覆盖前面布局的视图所以对子视图的扫描是从后向前扫描）。
+* newTouchTarget，用于保存新发现的可以接收事件分发的子视图的对象。
+* alreadyDispatchedToNewTouchTarget，新发现的可以接收事件分发的子视图是否已经接收了事件。
 
-150行，若未找到新的可以接收事件分发的对象但mFirstTouchTarget不为null，则将newTouchTarget置为链表的链尾。
+58－68行，由于intercepted与canceled字段此时均为false，因此进入if代码块。在第68行，由于我们当前是ACTION_DOWN手势，因此进入该代码块。
 
-163行， 若未找到任何可接收事件分发的子视图，则将事件传递给ViewGroup自身的onTouchEvent方法。
+80-89行，这一部分的代码的主要工作是找到一个可以接收事件分发的子视图，若newTouchTarget为null并且子视图的个数不为0的话则开始寻找这样的子视图。***这里要说明一点，在布局文件中，处于同一节点下的视图，若有两个位置重叠，则在后的视图会覆盖在前的视图，因此在为了寻找newTouchTarget而遍历子视图的过程中，遍历的顺序是由后向前***。
 
-168行，若事件分发链表不为空，定义两个变量，predecessor和target，第一个是上一个处理过的target，置为null，第二个是当前正在处理的target，显然我们需要把该变量置为mFirstTouchTarget，接下来是一个循环处理，当target不为空，即存在我们需要进行事件分发的子视图时，进入循环进行处理，接下来的第一个if判断，当alreadyDispatchedToNewTouchTarget为true并且target为newTouchTarget时，由于在找到新的事件分发对象时，我们已经将事件分发给了该对象对应的子视图，因此alreadyDispatchedToNewTouchTarget会被置为true，此时我们无需再次进行事件分发，直接将handled置为true，若if判断为否的话，进入else对应的代码块，此时需要对cancelChild进行赋值，接下来将事件分发给子视图，若子视图消费了该事件则将handled置为true（即，只要布局于该ViewGroup内的子视图其中的任何一个视图消费了此事件，那么handled都将被置为true，表示该ViewGroup消费了此事件），接下来，若之前设置的cancelChild为true即取消该子视图，那么若predecessor为空即当前target为链表头，那么将mFirstTouchTarget置为当前target的next用来表示当前target已被取消，若predecessor不为空，则直接将predecessor的next字段置为当前target的next，同样表示当前target已被取消，之后再对链表进行遍历的话便不会遍历到这个已被取消的target，之后将当前目标recycle掉并把target变量置为当前节点的下一节点即可。若不需要取消当前target，则将predecessor置为当前节点，当前节点置为下一节点即可，直至遍历完链表中的所有节点为止，这样，便完成了事件从当前ViewGroup到其child View/ViewGroup的分发。
+107-111，在遍历子视图的过程中需要对子视图是否具备可以接收事件分发的条件进行判断，这一部分代码便是进行这样的工作，通过两个方法的返回值来判断，其描述如下：
+
+* canViewReceivePointerEvents，通过跟进该方法可以看到，若视图是INVISIBLE的且未设置任何动画，那么该方法返回false，其他情况下均返回true。
+* isTransformedTouchPointInView，通过ACTION_DOWN手势的坐标判断该点是否在子视图的范围之内，若在范围之内则返回true，否则返回false，显然，若手势点都不在子视图内，子视图也没有必要接收这个事件了。
+
+那么根据这两个方法我们可以知道，子视图具备接收事件分发的条件是：
+
+* ***子视图是VISIBLE的或者为子视图设置了动画。***
+* ***子视图包含事件发生的坐标点。***
+
+若子视图不满足这两个条件之中的任何一个，则直接continue跳过当前子视图。
+
+113-119行，根据正在遍历的子视图在链表中查找是否已经存在这样的节点，并将查找结果赋值给newTouchTarget，若存在，则说明该视图已经存在于可以接收事件分发的链表中了，因此直接break跳出循环，若不存在，则继续寻找。
+
+122-141行，在这一部分尝试将事件分发给子视图，调用了dispatchTransformedTouchEvent方法，在这里根据传入的参数值，最终调用了子视图的dispatchTouchEvent方法，如果子视图消费了该事件那么将返回dispatchTransformedTouchEvent将返回true，此时这个子视图便是我们要寻找的可以接收事件分发的对象，因此在第138行，将根据该视图构造TouchTarget，并将此对象从链表头部插入链表，同时修改mFirstTouchTarget为新的表头，之后将alreadyDispatchedToNewTouchTarget修改为true，因为我们已经将事件分发给了该子视图，跳出循环。
+
+150-158行，若经过遍历未寻找到newTouchTarget但链表并不为空，则将newTouchTarget赋值为链表的表尾节点。
+
+163-166行，若链表为空，即没有找到任何可以接收事件分发的子视图，那么直接调用dispatchTransformedTouchEvent方法，并且通过调用的参数可得知，该方法内会调用父类的dispatchTouchEvent方法，并且在一般情况下会调用ViewGroup自身的onTouchEvent方法，即下一层没有需要接收事件分发的视图时，事件分发机制便会将ViewGroup当作一个普通的View一样处理。
+
+172-196行，从表头开始遍历链表，若当前节点为我们刚刚找到的newTouchTarget并且已经向其分发了事件，那么直接将handled置为true并且向后遍历。若不是，则首先判断节点对应的子视图是否需要取消事件分发，这里用到了之前设置的intercepted字段，在不进行任何拦截操作的情况下，intercepted的值为false，接下来，将事件分发给子视图，若子视图消费了此事件，则将handled置为true，再然后，若cancelChild为true，则需要将节点从链表中删除，用到的方法就是一般的链表的删除方法，删除中间的节点或者删除头节点。那么在此部分，我们可以看到，只要由任一子视图接收并消费了事件，那么ViewGroup的dispatchTouchEvent方法的handled会被置为true，即表示事件已被消费并向其上一层返回handled这个值。
+
+#### ***接下来讨论不进行任何事件拦截时的ACTION_MOVE和ACTION_UP事件***
+
+此时事件为ACTION_MOVE或ACTION_UP，那么不再会进入19行的if代码块，在第29行，虽然事件判断为false，但由于之前已经设置了链表为非空，因此仍会进入此代码块并调用onIntercepted方法，由于未做拦截，此时intercepted字段仍未false。
+
+在第58行进入if代码块，在第68行由于不满足判断条件因此不进入if代码块，跳转到163行，由于我们已经设置了非空的链表，因此会再次遍历链表并将事件分发给链表中的子视图，同时根据子视图对相关事件的处理对handled字段进行赋值并返回。
+
+至此，完成了在不进行任何事件拦截以及具有可接收事件的子视图的情况下的事件分发。
+
+## ***在不拦截任何事件以及不具有可接收事件的子视图的情况下***
+
+在这种情况下进行屏幕点击、滑动，控制台输出如下：
+
+{% highlight ruby linenos %}
+07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
+07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
+07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_DOWN
+{% endhighlight %}
+
+从控制台可以看到，依次调用了ViewGroup中的dispatchTouchEvent、onInterceptTouchEvent、onTouchEvent方法，同样，我们来看一下在这种情况下是怎样的流程。
+
+首先，同样在第19行，进入if代码块，与前面分析的情况无差别，做一些初始化的工作，接下来29行，进入if代码块，由于为做拦截，此时intercepted仍为false，同样地，在第58行、68行，进入该代码块来寻找newTouchEvent，不具有可接收事件的子视图有这样两种情况：
+
+* ViewGroup没有子视图，那么显然不会有任何需要接收事件的子视图
+* 用户ACTION_DOWN的位置上不含有可以接收事件的子视图
+
+在这两种情况下，显然，遍历子视图（如果有的话）并不会得到可用的newTouchTarget，因此经过这一部分代码，newTouchTarget以及mFirstTouchTarget均为null，那么在第163行，会进入if代码块，调用dispatchTransformedTouchEvent方法，由于传入的child为null，因此会在dispatchTransformedTouchEvent方法内调用父类也就是View的dispatchTouchEvent方法，最终调用了ViewGroup继承自View的onTouchEvent方法并根据相关方法的返回值对handled进行赋值。
+
+那么，在这里有一个问题，***当我们点击屏幕并在屏幕上滑动并释放时，为什么上面的控制台输出并无ACTION_MOVE以及ACTION_UP的相关信息输出？***
+
+这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为ViewGroup方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，***若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来***，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
+
+{% highlight ruby linenos %}
+public boolean onTouchEvent(MotionEvent event) {
+    
+    ...
+
+    if (((viewFlags & CLICKABLE) == CLICKABLE ||
+            (viewFlags & LONG_CLICKABLE) == LONG_CLICKABLE) ||
+            (viewFlags & CONTEXT_CLICKABLE) == CONTEXT_CLICKABLE) {
+        switch (action) {
+            case MotionEvent.ACTION_UP:
+                ...
+                break;
+
+            case MotionEvent.ACTION_DOWN:
+                ...
+                break;
+
+            case MotionEvent.ACTION_CANCEL:
+                ...
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                ...
+                break;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+{% endhighlight %}
+
+## ***重写onInterceptTouchEvent方法***
+
+### ***拦截ACTION_DOWN事件***
+
+{% highlight ruby linenos %}
+@Override
+public boolean onInterceptTouchEvent(MotionEvent ev) {
+    switch (ev.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_DOWN");
+            return true;
+        case MotionEvent.ACTION_MOVE:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_MOVE");
+            break;
+        case MotionEvent.ACTION_UP:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_UP");
+            break;
+    }
+    return super.onInterceptTouchEvent(ev);
+}
+
+07-31 13:16:12.614 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
+07-31 13:16:12.614 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
+07-31 13:16:12.614 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_DOWN
+{% endhighlight %}
+
+重写onInterceptTouchEvent方法拦截ACTION_DOWN事件，控制台输出如上，分析一波。
+
+在第29行开始的if-else代码块中，由于我们拦截了ACTION_DOWN事件，因此intercepted被置为true，那么58行开始的if代码块由于intercepted为true所以不会进入，直接跳转到163行，由于mFirstTouchTarget为null，因此直接调用ViewGroup的onTouchEvent方法，同时由于ViewGroupw未设置clickable、longClickable、contextClickable属性，因此handled会被置为false并向上返回，所以后续的ACTION_MOVE、ACTION_UP等事件不会再传递给ViewGroup。
+
+### ***拦截ACTION_MOVE事件***
+
+{% highlight ruby linenos %}
+@Override
+public boolean onInterceptTouchEvent(MotionEvent ev) {
+    switch (ev.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_DOWN");
+            break;
+        case MotionEvent.ACTION_MOVE:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_MOVE");
+            return true;
+        case MotionEvent.ACTION_UP:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_UP");
+            break;
+    }
+    return super.onInterceptTouchEvent(ev);
+}
+
+07-31 13:23:14.564 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
+07-31 13:23:14.564 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
+07-31 13:23:14.564 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-31 13:23:14.564 6921-6921/com.guoyonghui.eventdispatch D/CustomActivity: onTouch ACTION_DOWN
+07-31 13:23:14.564 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_DOWN
+07-31 13:23:14.644 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 13:23:14.644 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_MOVE
+07-31 13:23:14.644 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_CANCEL
+07-31 13:23:14.644 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_CANCEL
+07-31 13:23:14.664 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 13:23:14.664 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_MOVE
+07-31 13:23:14.714 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 13:23:14.714 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_MOVE
+07-31 13:23:14.724 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 13:23:14.724 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_MOVE
+07-31 13:23:14.734 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_UP
+07-31 13:23:14.734 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_UP
+{% endhighlight %}
+
+重写onInterceptTouchEvent方法拦截ACTION_MOVE事件，控制台输出如上，再分析一波。
+
+首先，从控制台输出可以看到，由于未对ACTION_DOWN事件进行拦截，因此ACTION_DOWN事件正常分发。再看到ACTION_MOVE部分，第一次ACTION_MOVE事件，一次调用了dispatchTouchEvent、onInterceptTouchEvent，跟进代码，由于ACTION_DOWN正常分发，因此mFirstTouchTarget被设置为非空，因此在分发ACTION_MOVE时，依然进入29行的if代码块，调用onInterceptTouchEvent方法并将intercepted置为true，那么58行的if代码块便不会再进入，因此直接进入到163行的if-else中，由于mFirstTouchTarget此时不会空，因此进入到else代码块，在对链表的遍历中，由于intercepted为true，因此cancelChild会被置为true，所以链表中的所有节点都将会接收到一个ACTION_CANCEL事件，同时被从链表中删除，经过此步，mFirstTouchTarget被置为空，那么在接收到下一个ACTION_MOVE事件的时候，由于mFirstTouchTarget已经为空，因此不再调用onInterceptTouchEvent方法。intercepted直接被置为true，所以直接进入163行的if代码块并最终调用ViewGroup的onTouchEvent方法，对于最后的ACTION_UP事件同理。
+
+### ***拦截ACTION_UP事件***
+
+{% highlight ruby linenos %}
+@Override
+public boolean onInterceptTouchEvent(MotionEvent ev) {
+    switch (ev.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_DOWN");
+            break;
+        case MotionEvent.ACTION_MOVE:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_MOVE");
+            break;
+        case MotionEvent.ACTION_UP:
+            Log.d(TAG, "onInterceptTouchEvent ACTION_UP");
+            return true;
+    }
+    return super.onInterceptTouchEvent(ev);
+}
+
+07-31 13:37:02.414 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
+07-31 13:37:02.414 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
+07-31 13:37:02.424 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
+07-31 13:37:02.424 6921-6921/com.guoyonghui.eventdispatch D/CustomActivity: onTouch ACTION_DOWN
+07-31 13:37:02.424 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_DOWN
+07-31 13:37:02.434 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_MOVE
+07-31 13:37:02.434 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_MOVE
+07-31 13:37:02.434 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_MOVE
+07-31 13:37:02.434 6921-6921/com.guoyonghui.eventdispatch D/CustomActivity: onTouch ACTION_MOVE
+07-31 13:37:02.434 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_MOVE
+07-31 13:37:02.444 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_UP
+07-31 13:37:02.444 6921-6921/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_UP
+07-31 13:37:02.444 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_CANCEL
+07-31 13:37:02.444 6921-6921/com.guoyonghui.eventdispatch D/CustomButton: onTouchEvent ACTION_CANCEL
+{% endhighlight %}
+
+与前面类似，ACTION_DOWN与ACTION_MOVE均正常分发，最后的ACTION_UP事件由于被拦截，经历了和上一部分中描述类似的过程。
+
+至此，对ViewGroup的事件分发机制便有了一个大致的了解，嗨呀。
+
+
+
+
+
+
 
 
 
