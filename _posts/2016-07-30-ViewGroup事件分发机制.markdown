@@ -3,7 +3,7 @@ layout: post
 title: "ViewGroup事件分发机制"
 author: Guomato
 date: 2016-07-30 17:30:26 +0800
-categories: ViewGroup Android
+categories: [Android 源码]
 ---
 继上一篇[View事件分发机制](http://guomato.github.io/android/view/2016/07/24/View事件分发机制.html)后，本篇博客将会分析ViewGroup的事件分发机制。
 
@@ -636,4 +636,8 @@ return super.onTouchEvent(event);
 
 ViewGroup是View的子类，因此若ViewGroup的dispatchTouchEvent在分发ACTION_DOWN事件时返回false未进行消费，同样得不到后续事件，原理和上面是一样的，和View的区别在于View只需判断自己是否消费了该事件，而ViewGroup需判断是否有子视图消费了该事件，若有则代表自己也消费了此事件，若没有再去调用自己的onTouchEvent来判断自己是否消费了该事件。
 
+同时，通过分析源码容易知道，若视图在分发ACTION_MOVE事件时返回false是不会影响后续事件继续发送过来的。
+
 至此，对ViewGroup的事件分发机制便有了一个大致的了解，嗨呀。
+
+------> [Source Code](https://github.com/Guomato/EventLearning)
