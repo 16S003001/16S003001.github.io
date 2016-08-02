@@ -3,7 +3,7 @@ layout: post
 title: "ViewGroup事件分发机制"
 author: Guomato
 date: 2016-07-30 17:30:26 +0800
-categories: [Android 源码]
+categories: [Android源码]
 ---
 继上一篇[View事件分发机制](http://guomato.github.io/android/view/2016/07/24/View事件分发机制.html)后，本篇博客将会分析ViewGroup的事件分发机制。
 
@@ -640,4 +640,4 @@ ViewGroup是View的子类，因此若ViewGroup的dispatchTouchEvent在分发ACTI
 
 至此，对ViewGroup的事件分发机制便有了一个大致的了解，嗨呀。
 
-------> [Source Code](https://github.com/Guomato/EventLearning)
+***[Source Code](https://github.com/Guomato/TouchEventLearning)***
