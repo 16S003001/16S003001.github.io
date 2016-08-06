@@ -20,7 +20,7 @@ layout: default
       {% for post in site.posts %}
     {% if post.categories contains category[0] %}
       <li>
-        <a href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>  <span>{{ post.date | date: "%Y/%m/%-d" }}</span>
+        <a href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>  <span>{{ post.date | date: "%Y/%m/%d" }}</span>
       </li>
         {% endif %}
   {% endfor %}

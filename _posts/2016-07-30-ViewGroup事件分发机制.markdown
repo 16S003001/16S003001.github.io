@@ -355,9 +355,9 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 如果不进行重写，ViewGroup中的onInterceptTouchEvent很简单，直接返回false，对任何事件都是拦截失败相当于不做拦截。
 
-## ***在不拦截任何事件以及具有可接收事件的子视图的情况下***
+## __在不拦截任何事件以及具有可接收事件的子视图的情况下__
 
-#### ***首先讨论ACTION_DOWN事件***
+#### __首先讨论ACTION_DOWN事件__
 
 用户一系列触控事件的开始是ACTION_DOWN事件，在第19-25行进行了ACTION_DOWN事件的一些初始化工作，这里涉及到一个叫做TouchTarget的类，从类名中我们可以大致看出，这是一个事件分发的目标类，而通过观察该类中的字段不难得知该类类似于一个链表，从表头到表尾的节点会依次接收事件分发，类中的child字段用于保存对应的子视图，next字段用于保存下一节点。通过调用cancelAndClearTouchTargets和resetTouchState方法可知，这几行代码的主要工作如下：
 
@@ -373,7 +373,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 58－68行，由于intercepted与canceled字段此时均为false，因此进入if代码块。在第68行，由于我们当前是ACTION_DOWN手势，因此进入该代码块。
 
-80-89行，这一部分的代码的主要工作是找到一个可以接收事件分发的子视图，若newTouchTarget为null并且子视图的个数不为0的话则开始寻找这样的子视图。***这里要说明一点，在布局文件中，处于同一节点下的视图，若有两个位置重叠，则在后的视图会覆盖在前的视图，因此在为了寻找newTouchTarget而遍历子视图的过程中，遍历的顺序是由后向前***。
+80-89行，这一部分的代码的主要工作是找到一个可以接收事件分发的子视图，若newTouchTarget为null并且子视图的个数不为0的话则开始寻找这样的子视图。__这里要说明一点，在布局文件中，处于同一节点下的视图，若有两个位置重叠，则在后的视图会覆盖在前的视图，因此在为了寻找newTouchTarget而遍历子视图的过程中，遍历的顺序是由后向前__。
 
 107-111，在遍历子视图的过程中需要对子视图是否具备可以接收事件分发的条件进行判断，这一部分代码便是进行这样的工作，通过两个方法的返回值来判断，其描述如下：
 
@@ -382,8 +382,8 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 那么根据这两个方法我们可以知道，子视图具备接收事件分发的条件是：
 
-* ***子视图是VISIBLE的或者为子视图设置了动画。***
-* ***子视图包含事件发生的坐标点。***
+* __子视图是VISIBLE的或者为子视图设置了动画。__
+* __子视图包含事件发生的坐标点。__
 
 若子视图不满足这两个条件之中的任何一个，则直接continue跳过当前子视图。
 
@@ -397,7 +397,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 172-196行，从表头开始遍历链表，若当前节点为我们刚刚找到的newTouchTarget并且已经向其分发了事件，那么直接将handled置为true并且向后遍历。若不是，则首先判断节点对应的子视图是否需要取消事件分发，这里用到了之前设置的intercepted字段，在不进行任何拦截操作的情况下，intercepted的值为false，接下来，将事件分发给子视图，若子视图消费了此事件，则将handled置为true，再然后，若cancelChild为true，则需要将节点从链表中删除，用到的方法就是一般的链表的删除方法，删除中间的节点或者删除头节点。那么在此部分，我们可以看到，只要由任一子视图接收并消费了事件，那么ViewGroup的dispatchTouchEvent方法的handled会被置为true，即表示事件已被消费并向其上一层返回handled这个值。
 
-#### ***接下来讨论不进行任何事件拦截时的ACTION_MOVE和ACTION_UP事件***
+#### __接下来讨论不进行任何事件拦截时的ACTION_MOVE和ACTION_UP事件__
 
 此时事件为ACTION_MOVE或ACTION_UP，那么不再会进入19行的if代码块，在第29行，虽然事件判断为false，但由于之前已经设置了链表为非空，因此仍会进入此代码块并调用onIntercepted方法，由于未做拦截，此时intercepted字段仍未false。
 
@@ -405,7 +405,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 至此，完成了在不进行任何事件拦截以及具有可接收事件的子视图的情况下的事件分发。
 
-## ***在不拦截任何事件以及不具有可接收事件的子视图的情况下***
+## __在不拦截任何事件以及不具有可接收事件的子视图的情况下__
 
 在这种情况下进行屏幕点击、滑动，控制台输出如下：
 
@@ -424,9 +424,9 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 在这两种情况下，显然，遍历子视图（如果有的话）并不会得到可用的newTouchTarget，因此经过这一部分代码，newTouchTarget以及mFirstTouchTarget均为null，那么在第163行，会进入if代码块，调用dispatchTransformedTouchEvent方法，由于传入的child为null，因此会在dispatchTransformedTouchEvent方法内调用父类也就是View的dispatchTouchEvent方法，最终调用了ViewGroup继承自View的onTouchEvent方法并根据相关方法的返回值对handled进行赋值。
 
-那么，在这里有一个问题，***当我们点击屏幕并在屏幕上滑动并释放时，为什么上面的控制台输出并无ACTION_MOVE以及ACTION_UP的相关信息输出？***
+那么，在这里有一个问题，__当我们点击屏幕并在屏幕上滑动并释放时，为什么上面的控制台输出并无ACTION_MOVE以及ACTION_UP的相关信息输出？__
 
-这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为onTouchEvent方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，***若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来，原因后面会讲***，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
+这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为onTouchEvent方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，__若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来，原因后面会讲__，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
 
 {% highlight ruby linenos %}
 public boolean onTouchEvent(MotionEvent event) {
@@ -461,9 +461,9 @@ public boolean onTouchEvent(MotionEvent event) {
 }
 {% endhighlight %}
 
-## ***重写onInterceptTouchEvent方法***
+## __重写onInterceptTouchEvent方法__
 
-#### ***拦截ACTION_DOWN事件***
+#### __拦截ACTION_DOWN事件__
 
 {% highlight ruby linenos %}
 @Override
@@ -491,7 +491,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 在第29行开始的if-else代码块中，由于我们拦截了ACTION_DOWN事件，因此intercepted被置为true，那么58行开始的if代码块由于intercepted为true所以不会进入，直接跳转到163行，由于mFirstTouchTarget为null，因此直接调用ViewGroup的onTouchEvent方法，同时由于ViewGroupw未设置clickable、longClickable、contextClickable属性，因此handled会被置为false并向上返回，所以后续的ACTION_MOVE、ACTION_UP等事件不会再传递给ViewGroup。
 
-#### ***拦截ACTION_MOVE事件***
+#### __拦截ACTION_MOVE事件__
 
 {% highlight ruby linenos %}
 @Override
@@ -533,7 +533,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 首先，从控制台输出可以看到，由于未对ACTION_DOWN事件进行拦截，因此ACTION_DOWN事件正常分发。再看到ACTION_MOVE部分，第一次ACTION_MOVE事件，一次调用了dispatchTouchEvent、onInterceptTouchEvent，跟进代码，由于ACTION_DOWN正常分发，因此mFirstTouchTarget被设置为非空，因此在分发ACTION_MOVE时，依然进入29行的if代码块，调用onInterceptTouchEvent方法并将intercepted置为true，那么58行的if代码块便不会再进入，因此直接进入到163行的if-else中，由于mFirstTouchTarget此时不会空，因此进入到else代码块，在对链表的遍历中，由于intercepted为true，因此cancelChild会被置为true，所以链表中的所有节点都将会接收到一个ACTION_CANCEL事件，同时被从链表中删除，经过此步，mFirstTouchTarget被置为空，那么在接收到下一个ACTION_MOVE事件的时候，由于mFirstTouchTarget已经为空，因此不再调用onInterceptTouchEvent方法。intercepted直接被置为true，所以直接进入163行的if代码块并最终调用ViewGroup的onTouchEvent方法，对于最后的ACTION_UP事件同理。
 
-#### ***拦截ACTION_UP事件***
+#### __拦截ACTION_UP事件__
 
 {% highlight ruby linenos %}
 @Override
@@ -570,7 +570,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 与前面类似，ACTION_DOWN与ACTION_MOVE均正常分发，最后的ACTION_UP事件由于被拦截，经历了和上一部分中描述类似的过程。
 
-## ***讲一讲为什么若View/ViewGroup未消费ACTION_DOWN事件则后续的事件也不会分发给它***
+## __讲一讲为什么若View/ViewGroup未消费ACTION_DOWN事件则后续的事件也不会分发给它__
 
 首先做个测试。
 {% highlight ruby linenos%}
@@ -640,4 +640,4 @@ ViewGroup是View的子类，因此若ViewGroup的dispatchTouchEvent在分发ACTI
 
 至此，对ViewGroup的事件分发机制便有了一个大致的了解，嗨呀。
 
-***[Source Code](https://github.com/Guomato/TouchEventLearning)***
+__[Source Code](https://github.com/Guomato/TouchEventLearning)__
