@@ -1123,155 +1123,92 @@ void fillGap(boolean down) {
 
 至此，活动过程中的复用机制便分析完毕了，下面我们通过例子来对上述分析进行一个验证。
 
-## 例子
+## __例子__
 
-![1](https://ooo.0o0.ooo/2016/08/06/57a614835488f.jpg)
-![2](https://ooo.0o0.ooo/2016/08/06/57a6140c57029.jpg)
-![3](https://ooo.0o0.ooo/2016/08/06/57a61483b0404.jpg)
+在这里贴出自定义的Adapter的代码：
 
 {% highlight ruby linenos %}
-08-07 00:49:12.457 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
-08-07 00:49:12.547 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
-08-07 00:49:12.551 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
-08-07 00:49:12.554 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
-08-07 00:49:19.539 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
-08-07 00:49:28.843 11156-11156/com.guoyonghui.listviewlearning D/MainActivity: convertView is not null
+private class ImageListAdapter extends ArrayAdapter<String> {
+
+    public ImageListAdapter(Context context) {
+        super(context, 0);
+    }
+
+    @Override
+    public int getCount() {
+        return mDatas.size();
+    }
+
+    @Override
+    public String getItem(int position) {
+        return mDatas.get(position);
+    }
+
+    @Override
+    public int getViewTypeCount() {
+        return 2;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        return position == 4 ? 1 : 0;
+    }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        Log.d(TAG, convertView == null ? "convertView is null" : "convertView is not null");
+
+        ViewHolder holder;
+        if (convertView == null) {
+            convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_item, parent, false);
+
+            holder = new ViewHolder();
+            holder.image = (ImageView) convertView.findViewById(R.id.image);
+
+            convertView.setTag(holder);
+        } else {
+            holder = (ViewHolder) convertView.getTag();
+        }
+
+        String imagePath = getItem(position);
+        downloadImage(imagePath, holder.image);
+
+        return convertView;
+    }
+
+    class ViewHolder {
+
+        ImageView image;
+
+    }
+}
 {% endhighlight %}
 
-1. 在左边的图片中，从控制台输出可以看到，加载前四张图片时convertView均为null
-2. 在中间的图片中，第五张图片已经滑入，但由于第一张图片还未滑出屏幕，因此此时没有任何视图被加入到mScrapViews，因此加载第五张图片的时候从控制台输出可以看到convertView仍为null
-3. 在右边的图片中，在第六张图片滑入的时候，第一张图片已经完全滑出，因此第一张图片对应的视图会被加入到mScrapViews中用来进行复用，因此在加载第六张图片的时候我们首先看到的是之前被缓存的第一张图片，从控制台输出也可以看到此时convertView已经不为null了
+![1](https://ooo.0o0.ooo/2016/08/06/57a69aa8af585.jpg)
+![2](https://ooo.0o0.ooo/2016/08/06/57a69aa8c7396.jpg)
 
-通过这个例子很好的对ListView的缓存机制进行了说明，经过分析，我们现在已经可以很容易地知道：
 
-> ListView用来展示列表需要创建的子视图的个数最多为第一屏的子视图的个数加一。
+![3](https://ooo.0o0.ooo/2016/08/06/57a69a6e68852.jpg)
+![4](https://ooo.0o0.ooo/2016/08/06/57a69c6b006d7.jpg)
+
+{% highlight ruby linenos %}
+08-07 10:13:33.600 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
+08-07 10:13:33.697 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
+08-07 10:13:33.702 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
+08-07 10:13:42.541 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
+08-07 10:13:46.874 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
+08-07 10:13:57.249 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is not null
+{% endhighlight %}
+
+* 图一，加载第一屏的三张图片，通过控制台输出可以看到convertView均为null
+* 图二，第四张图片进入屏幕，但由于第一张图片还未离开屏幕，因此此时没有任何视图被缓存，所以第四张图片仍使用LayoutInflater进行加载，通过控制台输出可以看到加载第四张图片的时候convertView仍为null
+* 图三，当第五张图片进入屏幕的时候，第一张图片已经移出屏幕并被缓存起来，但是由于第一张图片对应的ViewType是0，而第五张图片（即position＝4的位置）对应的ViewType是1，因此加载第五张图片会从ViewType为1的缓存中尝试获取视图，显然我们并未缓存任何视图到ViewType为1的缓存中，因此通过控制台可以看到，加载第五张图片的时候convertView仍为null
+* 图四，当第六张图片（ViewType为0）进入屏幕的时候，同种视图类型的图片一图片二已经被缓存起来，因此我们可以看到图片六的位置开始时显示的是第二张图片（因为图片是异步加载的），这是因为它重用了第二张图片的视图，从控制台可以看到这时的convertView就不为null了
+
+通过这个例子很好的对ListView的缓存机制进行了说明，经过分析，我们现在已经可以很容易地知道一件事：
+
+> ListView用来展示列表需要创建的子视图的个数最多为第一屏的子视图的个数加一，在滑动屏幕加载其他列表项的时候，只需复用最开始创建的子视图即可。
 
 至此，ListView的缓存机制已经分析完毕，由于代码较多，一些细节还未仔细推敲，后续会继续补上。
 
 __[Source Code](https://github.com/Guomato/ListViewLearning)__
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
