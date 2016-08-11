@@ -3,7 +3,7 @@ layout: post
 title: "ListView缓存机制"
 author: Guomato
 date: 2016-08-06 08:32:09 +0800
-categories: Android源码
+categories: [Android源码分析, Java]
 ---
 
 ListView大概是Android开发中最常用的组件之一了，本篇博客将对ListView的缓存机制进行一番探究。

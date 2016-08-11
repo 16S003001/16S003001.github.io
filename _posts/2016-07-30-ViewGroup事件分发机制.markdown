@@ -3,7 +3,7 @@ layout: post
 title: "ViewGroup事件分发机制"
 author: Guomato
 date: 2016-07-30 17:30:26 +0800
-categories: [Android源码]
+categories: [Android源码分析, Java]
 ---
 继上一篇[View事件分发机制](http://guomato.github.io/android/view/2016/07/24/View事件分发机制.html)后，本篇博客将会分析ViewGroup的事件分发机制。
 

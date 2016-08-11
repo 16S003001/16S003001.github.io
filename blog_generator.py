@@ -18,17 +18,21 @@ while 1:
 		break
 	categories.append(category)
 
+categories = set(categories)
+
 # obtain the time when blog created
 localtime = time.localtime(time.time())
 
 # obtain file path of the blog
-path = '_posts/' + time.strftime(timeformat_file, localtime) + title + '.markdown'
+path = '/users/guoyonghui/documents/guomato.github.io/_posts/' + time.strftime(timeformat_file, localtime) + title + '.markdown'
 
 # obtain initial content of the blog according to title, time and categories
-content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: ' + author + '\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories:'
-for category in categories:
-	content += ' ' + category
-content += '\n---'
+content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: ' + author + '\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories: ['
+for index, category in enumerate(categories):
+	content += category
+	if index != len(categories) - 1:
+		content += ', '
+content += ']\n---'
 
 # create blog file
 file = open(path, 'w')
