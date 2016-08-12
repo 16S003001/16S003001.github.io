@@ -152,12 +152,130 @@ Inner initialized
 
 ![非静态内部类作为静态成员变量被引用的引用关系图（gc后）](https://ooo.0o0.ooo/2016/08/11/57ac9ad054cdf.png)
 
+## __静态内部类__
 
+{% highlight ruby linenos %}
+public class Outer {
 
+	public Outer() {
+		System.out.println("Outer initialized");
+	}
+	
+	private void hello() {
+		System.out.println("hello");
+	}
+	
+	private static void staticHello() {
+		System.out.println("static hello");
+	}
+	
+	static class StaticInner {
+		
+		private static int sCounter = 0;
 
+		public StaticInner() {
+			System.out.println("StaticInner");
+			
+			//hello();
+			staticHello();
+		}
+		
+	}
+	
+	public static void main(String[] args) {
+		StaticInner staticInner = new StaticInner();
+	}
+	
+}
+{% endhighlight %}
 
+关于静态内部类（《Thinking in Java》中称作嵌套类），在第201页有如下两点描述：
 
+* 要创建嵌套类的对象，并不需要其外围类的对象
+* 不能从嵌套类的对象中访问非静态的非静态的外围类对象
 
+我们知道，非静态内部类对象的创建必须依赖于其外部类对象的存在性，而静态内部类却不具有这种特征，那么同样，静态内部类的对象也不会持有外部类对象的引用，因此无法访问外部类对象中非静态的成员变量和方法。静态内部类和非静态内部类还有一点区别就是非静态内部类中无法定义静态变量和方法，而在静态内部类中是可以的（关于这一点的原因有待补充）。
+
+在这里说明一点，非静态内部类对象以静态成员变量方式被外部类对象引用时可能会发生内存泄漏，而当内部类为静态内部类时上面描述的内存泄漏现象便不会发生，这是由于静态内部类对象并不会隐式地创建任何外部类对象的引用。
+
+## __匿名内部类和局部内部类__
+
+{% highlight ruby linenos %}
+public class Outer {
+
+	public Outer() {
+		System.out.println("Outer initialized");
+	}
+
+	private I1 localInnerClass(String localName) {
+		class LocalInnerClass implements I1 {
+
+			private String name;
+			
+			public LocalInnerClass(String name) {
+				System.out.println("Local inner class initialized");
+				
+				this.name = name;
+			}
+			
+			@Override
+			public void hello() {
+				System.out.println("Hello " + name);
+			}
+			
+		}
+		return new LocalInnerClass(localName);
+	}
+	
+	private I1 anonymousInnerClass(final String anonymousName) {
+		return new I1() {
+
+			private String name;
+			
+			{
+				System.out.println("Anonymous inner class");
+				
+				this.name = anonymousName;
+			}
+			
+			@Override
+			public void hello() {
+				System.out.println("Hello " + name);
+			}
+		};
+	}
+	
+	public static void main(String[] args) {
+		Outer outer = new Outer();
+
+		outer.localInnerClass("Local innner class").hello();
+		outer.anonymousInnerClass("Anonymous innner class").hello();
+	}
+	
+}
+
+interface I1 {
+	
+	void hello();
+	
+}
+
+//运行结果
+Outer initialized
+Local inner class initialized
+Hello Local innner class
+Anonymous inner class initialized
+Hello Anonymous innner class
+{% endhighlight %}
+
+局部内部类是定义在方法或是代码块中的内部类，由于在方法或代码块外该类是不可见的，因此不能为该类添加访问权限修饰符，但该内部类对于外部类中的所有成员变量及方法是具有访问权限的，同时，如果有需要，在局部内部类中可以对构造方法进行重载。
+
+匿名内部类可以用来继承类或是实现接口，但只能是其中之一，同样地在方法或代码块外是不可见的，匿名内部类对于外部类的所有成员变量及方法是具有访问权限的，需要注意的是位于匿名类定义所在的方法或代码块内部的变量，若匿名类需要访问该变量则需要为该变量加上final修饰符。由于匿名内部类不具有名字，因此无法在匿名内部类中重载构造方法，只能使用默认的构造方法，要想实现类似构造方法的效果，可以通过在匿名内部类中添加实例初始化代码块来实现。
+
+匿名内部类和局部内部类具有相似的功能，不过需要注意的是以下两种情况发生时，局部内部类将成为我们更好的选择：
+
+* 需要对构造方法进行重载时，显而易见，这是由于匿名内部类中无法对构造方法进行重载。
+* 需要多个内部类的对象时，若使用局部内部类，我们只需通过多次`new LocalInnerClass()`便可创建多个内部类的对象，若使用匿名内部类，每当我们需要创建一个内部类的实例时都需要重新给出匿名内部类的定义，这显然是不合适的。
 
 
 
