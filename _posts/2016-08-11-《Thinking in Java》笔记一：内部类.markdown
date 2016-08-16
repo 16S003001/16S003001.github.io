@@ -10,7 +10,7 @@ categories: [Java, 《Thinking in Java》笔记]
 
 非静态内部类通常具有如下的形式：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 class Outer {
 	
     public Outer() {}
@@ -28,7 +28,7 @@ class Outer {
 
 同时，我们可以由此必要条件了解到创建内部类对象的方法，首先我们必须创建一个外部类对象，然后通过此外部类对象来创建内部类对象。在下面的例子中，Inner和PrivateInner是Outer的两个内部类，区别在于，第一个内部类的可见性是包可见性，而第二个内部类的可见性是私有的。在main方法中，我们首先创建了一个外部类Outer对象，然后通过此对象我们可以创建Inner对象，但是我们无法创建PrivateInner对象，这是因为其可见性为private使得我们无法访问到类名从而无法创建对象，可见性为private的内部类只能在外部类的内部使用。
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public class Test {
 	
 	public static void main(String[] args) {
@@ -69,7 +69,7 @@ __在使用非静态内部类时需要注意有可能会发生内存泄漏__，�
 
 #### __例子：内部类对象以普通成员变量方式被引用__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 class Outer {
 	
 	private Inner inner;
@@ -130,7 +130,7 @@ Outer finalized
 
 首先需要说明，static静态变量或方法均存储于内存的方法区，其生命周期与整个程序的生命周期相同。
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 class Outer {
 	
 	private static Inner inner;
@@ -154,7 +154,7 @@ Inner initialized
 
 ## __静态内部类__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public class Outer {
 
 	public Outer() {
@@ -200,7 +200,7 @@ public class Outer {
 
 ## __匿名内部类和局部内部类__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public class Outer {
 
 	public Outer() {
@@ -265,7 +265,7 @@ Outer initialized
 Local inner class initialized
 Hello Local innner class
 Anonymous inner class initialized
-Hello Anonymous innner class
+Hello Anonymous innner classc
 {% endhighlight %}
 
 局部内部类是定义在方法或是代码块中的内部类，由于在方法或代码块外该类是不可见的，因此不能为该类添加访问权限修饰符，但该内部类对于外部类中的所有成员变量及方法是具有访问权限的，同时，如果有需要，在局部内部类中可以对构造方法进行重载。

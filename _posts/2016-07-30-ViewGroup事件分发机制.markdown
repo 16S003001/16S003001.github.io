@@ -3,14 +3,14 @@ layout: post
 title: "ViewGroup事件分发机制"
 author: Guomato
 date: 2016-07-30 17:30:26 +0800
-categories: [Android源码分析, Java]
+categories: [Android源码分析]
 ---
 继上一篇[View事件分发机制](http://guomato.github.io/android/view/2016/07/24/View事件分发机制.html)后，本篇博客将会分析ViewGroup的事件分发机制。
 
 在自定义了继承自View的组件CustomButton后，本篇需添加继承自ViewGroup的自定义组件CustomLinearLayout并重写相关方法，布局文件及自定义组件如下：
 
 CustomLinearLayout.java
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public class CustomLinearLayout extends LinearLayout {
 
     private static final String TAG = CustomLinearLayout.class.getSimpleName();
@@ -78,7 +78,7 @@ public class CustomLinearLayout extends LinearLayout {
 {% endhighlight %}
 
 activity_main.xml
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 <com.guoyonghui.eventdispatch.view.CustomLinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -104,7 +104,7 @@ activity_main.xml
 {% endhighlight %}
 
 单击自定义按钮后的控制台输出
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 07-30 22:00:28.037 4688-4688/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
 07-30 22:00:28.037 4688-4688/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
 07-30 22:00:28.037 4688-4688/com.guoyonghui.eventdispatch D/CustomButton: dispatchTouchEvent ACTION_DOWN
@@ -129,7 +129,7 @@ activity_main.xml
 
 首先我们对ViewGroup.java中的dispatchTouchEvent方法进行一波OB，代码较长，先贴出来。
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 public boolean dispatchTouchEvent(MotionEvent ev) {
     if (mInputEventConsistencyVerifier != null) {
@@ -347,7 +347,7 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 }
 {% endhighlight %}
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public boolean onInterceptTouchEvent(MotionEvent ev) {
     return false;
 }
@@ -409,7 +409,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 在这种情况下进行屏幕点击、滑动，控制台输出如下：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: dispatchTouchEvent ACTION_DOWN
 07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: onInterceptTouchEvent ACTION_DOWN
 07-31 11:15:05.241 15777-15777/com.guoyonghui.eventdispatch D/CustomLinearLayout: onTouchEvent ACTION_DOWN
@@ -428,7 +428,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 这就需要看到onTouchEvent方法，在下面这一段截取的onTouchEvent方法中我们可以看到，若在if判断中为true，则会对事件进行相关处理最后返回true，若判断为false，则直接返回false，那么ViewGroup中的dispatchTouchEvent的handled值最终会被置为onTouchEvent方法的返回值，由于在我们的布局文件中，并没有给CustomLinearLayout设置clickable、longClickable、contextClickable属性，因此会将handled置为false，并返回给ViewGroup的上一级，即ViewGroup并未消费此ACTION_DOWN事件，在此有一点很重要，__若任何View没有消费ACTION_DOWN事件即在dispatchTouchEvent方法中返回false，那么后续的事件如ACTION_MOVE、ACTION_UP等都不会再发送过来，原因后面会讲__，这便解释了为什么我们在上面的控制台输出中只能看到ACTION_DOWN的信息了。
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 public boolean onTouchEvent(MotionEvent event) {
     
     ...
@@ -465,7 +465,7 @@ public boolean onTouchEvent(MotionEvent event) {
 
 #### __拦截ACTION_DOWN事件__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 public boolean onInterceptTouchEvent(MotionEvent ev) {
     switch (ev.getAction()) {
@@ -493,7 +493,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 #### __拦截ACTION_MOVE事件__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 public boolean onInterceptTouchEvent(MotionEvent ev) {
     switch (ev.getAction()) {
@@ -535,7 +535,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
 #### __拦截ACTION_UP事件__
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 public boolean onInterceptTouchEvent(MotionEvent ev) {
     switch (ev.getAction()) {
@@ -573,7 +573,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 ## __讲一讲为什么若View/ViewGroup未消费ACTION_DOWN事件则后续的事件也不会分发给它__
 
 首先做个测试。
-{% highlight ruby linenos%}
+{% highlight bash linenos%}
 <com.guoyonghui.eventdispatch.view.CustomLinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"

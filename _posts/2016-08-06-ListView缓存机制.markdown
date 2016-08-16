@@ -3,7 +3,7 @@ layout: post
 title: "ListView缓存机制"
 author: Guomato
 date: 2016-08-06 08:32:09 +0800
-categories: [Android源码分析, Java]
+categories: [Android源码分析]
 ---
 
 ListView大概是Android开发中最常用的组件之一了，本篇博客将对ListView的缓存机制进行一番探究。
@@ -18,7 +18,7 @@ ListView大概是Android开发中最常用的组件之一了，本篇博客将�
 
 由于ListView是View的子类，因此，若要布局子视图，onLayout方法便会被调用，我们先来看一下onLayout方法，不过在ListView中并未找到该方法的踪迹，经过一通找发现在AbsListView中重写了onLayout方法，把它贴出来：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Subclasses should NOT override this method but
  *  {@link #layoutChildren()} instead.
@@ -51,7 +51,7 @@ protected void onLayout(boolean changed, int l, int t, int r, int b) {
 
 该方法的注释上写道：子类不应该重写此方法而应该重写layoutChildren方法来代替。可以看到，在onLayout方法中调用了layoutChildren方法，跟进layoutChildren方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
 * Subclasses must override this method to layout their children.
 */
@@ -61,7 +61,7 @@ protected void layoutChildren() {
 
 在AbsListView中这是一个空的方法，注释写道：子类必须重写该方法来布局他们的子视图。通过这句注释我们可以很清楚的知道，ListView的子视图是在该方法中完成的，那么我们跟进ListView中的layoutChildren方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 protected void layoutChildren() {
 
@@ -191,7 +191,7 @@ protected void layoutChildren() {
 
 下面贴出了这个类的部分代码，截取了一些目前我理解了的部分。
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * The RecycleBin facilitates reuse of views across layouts. The RecycleBin has two levels of
  * storage: ActiveViews and ScrapViews. ActiveViews are those views which were onscreen at the
@@ -478,7 +478,7 @@ class RecycleBin {
 
 47－96行，一个switch语句，对mLayoutMode进行判断，很容易找到，mLayoutMode的默认值为LAYOUT_NORMAL，同时在layoutChildren方法的末尾会对这个字段进行重置，那么在这个switch语句中，一般我们会进入到default分支，在这个分支中有很多if，第一次layout过程中，childCount为0，同时除非是经过设置，mStackFromBottom一般为false（mStackFromBottom即列表从下向上展开，一般我们使用ListView都是从上至下展开的），接下来会调用fillFromTop方法，跟进fillFromTop方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Fills the list from top to bottom, starting with mFirstPosition
  *
@@ -499,7 +499,7 @@ private View fillFromTop(int nextTop) {
 
 在fillFromTop方法内，首先对mFirstPosition的值做了一番检查，在第一次layout过程中，显然经过这一通检查，最后mFirstPosition的值为0，nextTop的值是我们之前声明的childrenTop的值，然后调用fillDown方法，跟进fillDown方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Fills the list from pos down to the end of the list view.
  *
@@ -542,7 +542,7 @@ private View fillDown(int pos, int nextTop) {
 
 现在我们来看一下makeAndAddView方法的实现：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Obtain the view and add it to our list of children. The view can be made
  * fresh, converted from an unused view, or used as is if it was in the
@@ -585,7 +585,7 @@ private View makeAndAddView(int position, int y, boolean flow, int childrenLeft,
 
 在makeAndAddView方法内，由于mDataChanged为false，因此会进入if代码块，尝试从RecycleBin中的mActiveViews获取子视图，显然在第一次layout过程中是获取不到的，因此child此时为空，那么便会调用下面的obtainView方法来获得child，来看一下obtainView方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Get a view and have it show the data associated with the specified
  * position. This is called when we have already discovered that the view is
@@ -648,7 +648,7 @@ View obtainView(int position, boolean[] isScrap) {
 
 回到makeAndAddView方法，接下来会调用setupChild方法，并将我们得到的子视图child和mIsScrap[0]作为参数传入，跟进setupChild方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Add a view as a child and make sure it is measured (if necessary) and
  * positioned properly.
@@ -705,7 +705,7 @@ private void setupChild(View child, int position, int y, boolean flowDown, int c
 
 在layout过程中，我们若要将子视图添加到ListView容器中有两种方法，一个是调用attachViewToParent，另一个是调用addViewInLayout，这两个方法的第二个参数都为index，而我们传入的值均为-1，这两个方法最终都调用了addInArray方法，同时在调用该方法前都对index字段通过如下方法进行校正：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 if (index < 0) {
     index = mChildrenCount;
 }
@@ -713,7 +713,7 @@ if (index < 0) {
 
 由于我们传入的index始终为-1，因此通过此步校正，index被赋值为mChildrenCount的值并作为参数传入addInArray方法，接下来我们看下addInArray方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 private void addInArray(View child, int index) {
     View[] children = mChildren;
     final int count = mChildrenCount;
@@ -757,7 +757,7 @@ private void addInArray(View child, int index) {
 
 47-96行，switch语句，此时仍然会进入default分支，然后进入else代码块，这里有几个判断，由于在第一次layout过程中mSelectedPosition被设置为0，因此会进入第一个if代码块，调用fillSpecific方法，跟进fillSpecific方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Put a specific item at a specific location on the screen and then build
  * up and down from there.
@@ -811,7 +811,7 @@ private View fillSpecific(int position, int top) {
 
 这个方法的主要作用是先加载指定位置的子视图，然后再加载其上边的和下边的子视图，由于我们传入的position值为0，因此会继续调用fillDown方法，同理会在循环中调用makeAndAddView方法，但这次会有所不同，区别发生在下面这一部分：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 if (!mDataChanged) {
     // Try to use an existing view for this position
     child = mRecycler.getActiveView(position);
@@ -837,7 +837,7 @@ if (!mDataChanged) {
 
 通过上面的一通分析，我们已经知道了加载ListView时，ListView只会加载前几个能显示在屏幕上的列表项，对于其他的列表项不做加载，若要显示其他列表项则需要进行滑动操作，那么下面来探究滑动过程中的复用。首先，ListView是一个ViewGroup，本身并不具有可滑动的属性，因此若要实现列表上下滑动的效果则要对Touch事件进行特殊处理，而我们需要重点关注的Touch事件显然就是ACTION_MOVE事件。我们先来看一下onTouchEvent方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 @Override
 public boolean onTouchEvent(MotionEvent ev) {
 
@@ -909,7 +909,7 @@ public boolean onTouchEvent(MotionEvent ev) {
 
 可以看到在处理ACTION_MOVE事件时调用了onTouchMove方法，在onTouchMove方法中处理TOUCH_MODE_SCROLL和TOUCH_MODE_OVERSCROLL又调用了scrollIfNeeded方法，跟进scrollIfNeeded方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 private void scrollIfNeeded(int x, int y, MotionEvent vtev) {
     
 	...
@@ -959,7 +959,7 @@ private void scrollIfNeeded(int x, int y, MotionEvent vtev) {
 
 该方法的名称为scrollIfNeeded，很明显就是，如果有必要的话进行滑动，那么我们可以判断出ListView的滑动效果应该就是在这里产生的，在19行，声明了一个int型变量incrementalDeltaY，并赋值为从开始按下的ACTION_DOWN事件到现在正在处理的ACTION_MOVE事件手指在y轴上滑动的距离，那么接着往下看，我们会看到若incrementalDeltaY不为0的话便会调用trackMotionScroll方法，跟进trackMotionScroll方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Track a motion scroll
  *
@@ -1081,7 +1081,7 @@ boolean trackMotionScroll(int deltaY, int incrementalDeltaY) {
 
 90-93行，这里调用了fillGap方法，并将down作为参数传入，我们跟进fillGap方法：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 /**
  * Fills the gap left open by a touch-scroll. During a touch scroll, children that
  * remain on screen are shifted and the other ones are discarded. The role of this
@@ -1127,7 +1127,7 @@ void fillGap(boolean down) {
 
 在这里贴出自定义的Adapter的代码：
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 private class ImageListAdapter extends ArrayAdapter<String> {
 
     public ImageListAdapter(Context context) {
@@ -1191,7 +1191,7 @@ private class ImageListAdapter extends ArrayAdapter<String> {
 ![3](https://ooo.0o0.ooo/2016/08/06/57a69a6e68852.jpg)
 ![4](https://ooo.0o0.ooo/2016/08/06/57a69c6b006d7.jpg)
 
-{% highlight ruby linenos %}
+{% highlight bash linenos %}
 08-07 10:13:33.600 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
 08-07 10:13:33.697 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
 08-07 10:13:33.702 22398-22398/com.guoyonghui.listviewlearning D/MainActivity: convertView is null
