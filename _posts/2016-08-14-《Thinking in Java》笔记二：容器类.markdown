@@ -712,15 +712,67 @@ public boolean addAll(int index, Collection<? extends E> c) {
 }
 {% endhighlight %}
 
+addAll方法的作用是将一个Collection对象中包含的所有元素加入到LinkedList的指定位置，首先对index进行判断，如果`index == size`为真，则说明我们是在将一组元素加入到链表尾部，此时我们将pred置为last，将succ置为空，如果为假，则说明我们是在将一组元素加入到链表的中间，则将succ置为index对应的元素，将pred置为succ的前驱结点，那么显然，prev即是需要加入的一组元素的第一个元素的前驱，succ即是需要加入的一组元素的最后一个元素的后继。接下来对需要添加的元素进行遍历，并依次为每个结点设置前驱和后继，由于每个结点的后继结点是在结点被创建的下一轮迭代中设置的，因此跳出循环后我们需要为添加的最后一个元素设置后继结点，若succ为空说明最后一个添加的元素即为尾结点，否则将最后一个元素的后继设置为succ同时将succ的前驱设置为pred即可。最后，修改size和modCount。
 
+__node__
+{% highlight bash linenos %}
+/**
+ * Returns the (non-null) Node at the specified element index.
+ */
+Node<E> node(int index) {
+    // assert isElementIndex(index);
 
+    if (index < (size >> 1)) {
+        Node<E> x = first;
+        for (int i = 0; i < index; i++)
+            x = x.next;
+        return x;
+    } else {
+        Node<E> x = last;
+        for (int i = size - 1; i > index; i--)
+            x = x.prev;
+        return x;
+    }
+}
+{% endhighlight %}
 
+node方法的主要作用是根据index获取链表中相应位置的结点，逻辑很简单，首先通过一个简单的二分法判断index是处于size的前半部分还是后半部分，处于前半部分则从头结点开始遍历，处于后半部分则从尾结点进行遍历。
 
+__indexOf__
+{% highlight bash linenos %}
+/**
+ * Returns the index of the first occurrence of the specified element
+ * in this list, or -1 if this list does not contain the element.
+ * More formally, returns the lowest index {@code i} such that
+ * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>,
+ * or -1 if there is no such index.
+ *
+ * @param o element to search for
+ * @return the index of the first occurrence of the specified element in
+ *         this list, or -1 if this list does not contain the element
+ */
+public int indexOf(Object o) {
+    int index = 0;
+    if (o == null) {
+        for (Node<E> x = first; x != null; x = x.next) {
+            if (x.item == null)
+                return index;
+            index++;
+        }
+    } else {
+        for (Node<E> x = first; x != null; x = x.next) {
+            if (o.equals(x.item))
+                return index;
+            index++;
+        }
+    }
+    return -1;
+}
+{% endhighlight %}
 
+indexOf方法的主要作用是获取元素在链表中的位置，这是通过遍历链表判断对象是否equal来实现的。
 
-
-
-
+__那么，很容易看出，LinkedList中的大部分操作都是对上述的方法进行了一些简单的封装来实现的，对LinkedList的总结：随机访问要通过遍历链表来实现，相比于ArrayList效率较低，插入/删除操作只需从链表中获取到相应位置的结点然后调整相关前驱后继结点即可而非像ArrayList中需要对数组进行复制移动等操作，因此插入/删除操纵效率较高。__
 
 
 
