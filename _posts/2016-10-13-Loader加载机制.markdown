@@ -1,0 +1,209 @@
+---
+layout: post
+title: "Loader加载机制"
+author: Guomato
+date: 2016-10-13 19:27:43 +0800
+categories: [Android源码分析]
+---
+
+根据Android Developers的官方文档：
+
+{% highlight bash linenos %}
+// Prepare the loader.  Either re-connect with an existing one,
+// or start a new one.
+getLoaderManager().initLoader(0, null, this);
+{% endhighlight %}
+
+为了使用Loader，我们必须先获取到LoaderManager，很容易发现LoaderManager类是一个抽象类，那么我们需要找到LoaderManager的具体实现类——LoaderManagerImpl，首先我们来看initLoader()方法：
+
+{% highlight bash linenos %}
+public <D> Loader<D> initLoader(int id, Bundle args, LoaderManager.LoaderCallbacks<D> callback) {
+    if (mCreatingLoader) {
+        throw new IllegalStateException("Called while creating a loader");
+    }
+    
+    LoaderInfo info = mLoaders.get(id);
+    
+    if (DEBUG) Log.v(TAG, "initLoader in " + this + ": args=" + args);
+
+    if (info == null) {
+        // Loader doesn't already exist; create.
+        info = createAndInstallLoader(id, args,  (LoaderManager.LoaderCallbacks<Object>)callback);
+        if (DEBUG) Log.v(TAG, "  Created new loader " + info);
+    } else {
+        if (DEBUG) Log.v(TAG, "  Re-using existing loader " + info);
+        info.mCallbacks = (LoaderManager.LoaderCallbacks<Object>)callback;
+    }
+    
+    if (info.mHaveData && mStarted) {
+        // If the loader has already generated its data, report it now.
+        info.callOnLoadFinished(info.mLoader, info.mData);
+    }
+    
+    return (Loader<D>)info.mLoader;
+}
+{% endhighlight %}
+
+该方法接收三个参数分别是id、args和callback，在第6行，根据传入的id尝试获取LoaderInfo，若之前已经创建了与该id关联的Loader，则获取到的info为非空，此时直接将callback附到info上即可，同时若Loader已经开始并且已经获取到了数据，则直接通过调用callOnLoadFinished()方法来将数据传回。
+
+若之前未创建与该id相关联的Loader，则需要根据传入的几个参数创建一个新的Loader，在这里调用了createAndInstallLoader()方法，跟进此方法。
+
+{% highlight bash linenos %}
+private LoaderInfo createLoader(int id, Bundle args,
+        LoaderManager.LoaderCallbacks<Object> callback) {
+    LoaderInfo info = new LoaderInfo(id, args,  callback);
+    Loader<Object> loader = callback.onCreateLoader(id, args);
+    info.mLoader = loader;
+    return info;
+}
+
+private LoaderInfo createAndInstallLoader(int id, Bundle args,
+        LoaderManager.LoaderCallbacks<Object> callback) {
+    try {
+        mCreatingLoader = true;
+        LoaderInfo info = createLoader(id, args, callback);
+        installLoader(info);
+        return info;
+    } finally {
+        mCreatingLoader = false;
+    }
+}
+{% endhighlight %}
+
+在createAndInstallLoader()中调用了createLoader()方法来获取LoaderInfo的实例，在createLoader()中实例化了一个LoaderInfo并且通过callback中的回调函数来获取Loader的实例并将其附到LoaderInfo的实例中，最后返回LoaderInfo的实例。返回createAndInstallLoader()方法，我们可以看到接下来调用了installLoader()函数，在installLoader()函数中首先以键值对的形式将id与LoaderInfo存入一个map中，这便是上述的我们可以从mLoaders中根据id获取到非空LoaderInfo的原因。然后，若mStarted为真，则调用LoaderInfo的start()函数，我们来看一下变量mStarted是何时被赋值的。
+
+很容易找到，mStarted变量在LoaderManagerImpl的构造函数中被初始化的，那么LoaderManagerImpl是何时被实例化的呢？答案就在获取LoaderManager的方法getSupportLoaderManager()中，该方法最终调用了FragmentHostCallback类中的getLoaderManagerImpl()方法，在该方法中传入的mLoaderStarted变量的值即为mStarted变量的初值，问题又来了，mLoadersStarted又是在何时被赋值的？答案是doLoaderStart()方法中，该变量被置为true，而经过一番查阅资料后发现，在Activity的onStart()方法中调用了doLoaderStart()方法，最终将mStarted变量置为true，因此LoaderInfo的start()方法会被调用。跟进start()方法。
+
+{% highlight bash linenos %}
+void start() {
+    if (mRetaining && mRetainingStarted) {
+        // Our owner is started, but we were being retained from a
+        // previous instance in the started state...  so there is really
+        // nothing to do here, since the loaders are still started.
+        mStarted = true;
+        return;
+    }
+
+    if (mStarted) {
+        // If loader already started, don't restart.
+        return;
+    }
+
+    mStarted = true;
+    
+    if (DEBUG) Log.v(TAG, "  Starting: " + this);
+    if (mLoader == null && mCallbacks != null) {
+       mLoader = mCallbacks.onCreateLoader(mId, mArgs);
+    }
+    if (mLoader != null) {
+        if (mLoader.getClass().isMemberClass()
+                && !Modifier.isStatic(mLoader.getClass().getModifiers())) {
+            throw new IllegalArgumentException(
+                    "Object returned from onCreateLoader must not be a non-static inner member class: "
+                    + mLoader);
+        }
+        if (!mListenerRegistered) {
+            mLoader.registerListener(mId, this);
+            mLoader.registerOnLoadCanceledListener(this);
+            mListenerRegistered = true;
+        }
+        mLoader.startLoading();
+    }
+}
+{% endhighlight %}
+
+在该方法中，首先判断info中的Loader是否为空，若为空则通过回调函数的onCreateLoader()方法来为其赋值。接下来，为Loader添加监听器(加载完成监听器和加载取消监听器)，最后调用Loader的startLoading()方法，startLoading()中又会调用onStartLoading()方法，这个方法在Loader中是一个空方法因此必须由子类进行重写，在这里我们以AsyncTaskLoader()方法为例，在我们重写的继承自AsyncTaskLoader的类中的onStartLoading()方法中，我们调用了forceLoad()方法，该方法同样调用了onForceLoad()方法，我们跟进AsyncTaskLoader中的onForceLoad()方法。
+
+{% highlight bash linenos %}
+@Override
+protected void onForceLoad() {
+    super.onForceLoad();
+    cancelLoad();
+    mTask = new LoadTask();
+    if (DEBUG) Log.v(TAG, "Preparing load: mTask=" + mTask);
+    executePendingTask();
+}
+{% endhighlight %}
+
+该方法中创建了一个LoadTask类的实例，可以看出，LoadTask类就是一个封装好了的AsyncTask，在该类中doInBackground()方法中，实际上调用的是我们继承自AsyncTaskLoader的类中的loadInBackground()方法，那么这便意味着我们加载数据的耗时操作均要写在loadInBackground()方法中。
+
+回到onForceLoad()方法，方法的最后调用了executePendingTask()方法，该方法的任务就是执行上面创建的LoadTask，我们知道，AsyncTask是在doInBackground()方法中执行耗时操作，正如我们上面所说，这个方法调用的是我们重写的loadInBackground()方法，那么我们知道当耗时操作执行完毕后onPostExecute()方法会被调用，我们来跟进此方法。
+
+{% highlight bash linenos %}
+@Override
+protected void onPostExecute(D data) {
+    if (DEBUG) Log.v(TAG, this + " onPostExecute");
+    try {
+        AsyncTaskLoader.this.dispatchOnLoadComplete(this, data);
+    } finally {
+        mDone.countDown();
+    }
+}
+
+void dispatchOnCancelled(LoadTask task, D data) {
+    onCanceled(data);
+    if (mCancellingTask == task) {
+        if (DEBUG) Log.v(TAG, "Cancelled task is now canceled!");
+        rollbackContentChanged();
+        mLastLoadCompleteTime = SystemClock.uptimeMillis();
+        mCancellingTask = null;
+        if (DEBUG) Log.v(TAG, "Delivering cancellation");
+        deliverCancellation();
+        executePendingTask();
+    }
+}
+
+void dispatchOnLoadComplete(LoadTask task, D data) {
+    if (mTask != task) {
+        if (DEBUG) Log.v(TAG, "Load complete of old task, trying to cancel");
+        dispatchOnCancelled(task, data);
+    } else {
+        if (isAbandoned()) {
+            // This cursor has been abandoned; just cancel the new data.
+            onCanceled(data);
+        } else {
+            commitContentChanged();
+            mLastLoadCompleteTime = SystemClock.uptimeMillis();
+            mTask = null;
+            if (DEBUG) Log.v(TAG, "Delivering result");
+            deliverResult(data);
+        }
+    }
+}
+{% endhighlight %}
+
+该方法中调用了AsyncTaskLoader中的dispatchOnLoadComplete()方法，如果mTask与task引用的不是同一个LoadTask实例则说明我们创建了新的LoadTask()，因此需要取消之前的task，即调用dispatchOnCancelled()方法，这两个函数的均把当前的状态(加载完毕的数据或取消操作)传给之前注册给Loader的监听器，最终监听器会调用callback的onLoadFinished()或onLoaderReset()函数。
+
+Android中Loader的大概机制如上所述。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
