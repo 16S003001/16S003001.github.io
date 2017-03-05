@@ -7,11 +7,9 @@
 
 # Site settings
 title: 没时间解释了，要写不完了
-email: your-email@domain.com
 description: (ง •̀_•́)ง
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "http://yourdomain.com" # the base hostname & protocol for your site
-github_username: Guomato
+github_username: 16S003001
 
 # Build settings
 markdown: kramdown

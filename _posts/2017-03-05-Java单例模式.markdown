@@ -1,0 +1,220 @@
+---
+layout: post
+title: "Java单例模式"
+author: '#1121'
+date: 2017-03-05 14:32:40 +0800
+categories: [设计模式, Java]
+---
+
+单例模式是一种常见的设计模式，任意时刻有且仅有一个该类的实例存在于内存中，单例模式有很多写法，首先是单线程下。
+
+## __懒汉式__
+
+{% highlight bash linenos %}
+class Singleton1 {
+
+    private static Singleton1 singleton = new Singleton1();
+
+    private Singleton1() {
+    }
+
+    public static Singleton1 getInstance() {
+        return singleton;
+    }
+}
+{% endhighlight %}
+
+static修饰符确保了该实例是一个单例，其特点是：
+
+* 即使我们不需要使用该类的单例，它仍然会在类被加载时就创建，浪费了额外的空间
+* 如果单例的实例化过程较为复杂，懒汉式可以减少用户第一次使用单例时的响应时间
+
+## __懒汉式__
+
+{% highlight bash linenos %}
+class Singleton2 {
+
+    private static Singleton2 singleton = null;
+
+    private Singleton2() {
+    }
+
+    public static Singleton2 getInstance() {
+        if (singleton == null) {
+            singleton = new Singleton2();
+        }
+        return singleton;
+    }
+
+}
+{% endhighlight %}
+
+相比于懒汉式，懒汉式具有以下特点：
+
+* 懒汉式将单例实例化的时机从类被加载时变成了用户第一次使用单例时，即延迟初始化
+* 如果单例的实例化过程较为复杂，那么当用户第一次使用单例时的响应时间会略长
+
+## __多线程下的单例模式__
+
+{% highlight bash linenos %}
+class Singleton2Test implements Runnable {
+
+    private static Set<Singleton2> singletons = new HashSet<>();
+
+    @Override
+    public void run() {
+        Singleton2 singleton = Singleton2.getInstance();
+        singletons.add(singleton);
+    }
+
+    public static void main(String[] args) {
+        Singleton2Test test = new Singleton2Test();
+
+        for(int i = 0; i < 10; i++) {
+            new Thread(test).start();
+        }
+
+        print(singletons);
+    }
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+运行结果:
+[Singleton2@47abfd68, Singleton2@4f0ab3f2]
+{% endhighlight %}
+
+在上面这段代码中，启动十个线程，每个线程均将获取到的懒汉式单例放入集合中，如果懒汉式是线程安全的，那么在程序运行完毕后集合中应该只有一个元素，但正如结果所示，集合中显然不止一个元素，这说明了懒汉式单例模式并不是线程安全的。
+
+懒汉式单例模式在多线程下会失效，以上面的懒汉式单例模式为例，线程A执行到了第9行，由于单例还未被实例化因此判定singleton为空进入if代码块，若此时线程A被线程B抢占，由于线程A还未执行单例的实例化因此线程B仍会进入if代码块，这就导致了实际上内存中存在多个Singleton的实例，这与单例模式的定义相违背了。（同时，容易看出饿汉式单例模式是线程安全的）
+
+下面介绍多线程下的单例模式，最简单的方式就是加同步锁。
+
+{% highlight bash linenos %}
+class Singleton3 {
+
+    private static Singleton3 singleton = null;
+
+    private Singleton3() {
+
+    }
+
+    public static synchronized Singleton3 getInstance() {
+        if (singleton == null) {
+            singleton = new Singleton3();
+        }
+        return singleton;
+    }
+
+}
+{% endhighlight %}
+
+## __双重校验锁__
+
+由于加同步锁需要一定开销，每次获取单例都要加同步锁显然代价上是不合适的，因此需要进行改进，在这里引进双重校验锁。
+
+{% highlight bash linenos %}
+class Singleton4 {
+
+    private static Singleton4 singleton = null;
+
+    private Singleton4() {
+
+    }
+
+    public static Singleton4 getInstance() {
+        if (singleton == null) {
+            synchronized (Singleton4.class) {
+                if (singleton == null) {
+                    singleton = new Singleton4();
+                }
+            }
+        }
+        return singleton;
+    }
+
+}
+{% endhighlight %}
+
+和上面已经介绍的部分类似，假如两个线程A和B同时在获取单例，线程A和B都进入了外部if代码块，由于加同步锁的代码块同一时间只能有一个线程在执行，假如A正在执行同步代码块，那么只有当A执行完毕后，线程B才能执行该代码块，而当线程B再进入同步代码块时由于单例已经被线程A实例化，因此线程B不会再进入内部if代码块，这就保证了有且仅有一个单例实例驻留在内存中。
+
+## __双重校验锁的问题（改进版的双重校验锁）__
+
+虽然双重校验锁可以保证单例模式里的单例的唯一性，但是单例模式仍然存在问题，在上面介绍的双重校验锁的第13行，new了一个Singleton4的实例，但需要注意的是new操作并不具有原子性，new操作可以分为以下三个步骤：
+
+1. 为要创建的对象分配内存
+2. 对分配的内存进行初始化
+3. 将引用指向分配的内存地址
+
+由于Java指令重排序的存在，上述三个过程的2、3可能会颠倒，执行顺序变为1、3、2，由于该操作并不是原子性操作，假设线程A执行了1和3，2尚未执行，此时线程A被线程B抢占，由于singleton已经指向一块内存地址，因此外部if判断中singleton是不为空的，会直接将未初始化的单例返回给调用者，而使用未初始化的单例显然是危险的，这便是双重校验锁中存在的问题。改进如下。
+
+{% highlight bash linenos %}
+class Singleton5 {
+
+    private static Singleton5 singleton = null;
+
+    private Singleton5() {
+
+    }
+
+    public static Singleton5 getInstance() {
+        if (singleton == null) {
+            synchronized (Singleton5.class) {
+                Singleton5 temp = singleton;
+                if (temp == null) {
+                    temp = new Singleton5();
+                }
+                singleton = temp;
+            }
+        }
+        return singleton;
+    }
+
+}
+{% endhighlight %}
+
+在双重校验锁的基础上，同步代码块中引入了一个temp变量，第16行，将singleton指向temp指向的对象，这一步操作是原子性操作，而在此之前temp已经分配完内存空间并初始化完毕，因此不会存在上面所说的单例不为空却未初始化的情况，这便解决了双重校验锁的问题。
+
+## __静态内部类实现单例模式__
+
+最后，再介绍一种通过静态内部类实现的单例模式。
+
+{% highlight bash linenos %}
+class Singleton6 {
+
+    private Singleton6() {
+
+    }
+
+    public static Singleton6 getInstance() {
+        return SingletonHolder.singleton;
+    }
+
+    private static class SingletonHolder {
+        private static Singleton6 singleton = new Singleton6();
+    }
+
+}
+{% endhighlight %}
+
+这里首先利用了静态内部类和静态变量的特性，保证了单例的唯一性而且是线程安全的，再来由于静态内部类是延迟加载的，使用的时候才加载，因此这种方式也是属于懒汉式的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

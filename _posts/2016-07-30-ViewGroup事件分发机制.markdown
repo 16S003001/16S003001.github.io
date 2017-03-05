@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "ViewGroup事件分发机制"
-author: Guomato
+author: '#1121'
 date: 2016-07-30 17:30:26 +0800
 categories: [Android源码分析]
 ---

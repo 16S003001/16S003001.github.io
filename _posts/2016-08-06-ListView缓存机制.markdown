@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "ListView缓存机制"
-author: Guomato
+author: '#1121'
 date: 2016-08-06 08:32:09 +0800
 categories: [Android源码分析]
 ---

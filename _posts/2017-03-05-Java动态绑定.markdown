@@ -1,0 +1,39 @@
+---
+layout: post
+title: "Java动态绑定"
+author: '#1121'
+date: 2017-03-05 17:06:09 +0800
+categories: [Java]
+---
+
+动态绑定，指在运行期间判断所引用对象的实际类型，根据实际类型调用相应的方法。
+
+{% highlight bash linenos %}
+public class DynamicBinding {
+    public static void main(String[] args) {
+        Base base = new Sub();
+        base.hello();
+    }
+}
+
+class Base {
+    public void hello() {
+        print("Hello base");
+    }
+}
+
+class Sub extends Base {
+    public void hello() {
+        print("Hello sub");
+    }
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+运行结果:
+Hello sub
+{% endhighlight %}
+
+在上面这段程序中实例化了一个Sub对象并将其向上转型给一个Base类型的引用，然后通过该饮用调用hello方法，从运行结果中可以看到调用的是Sub类的hello方法，这是由于Java的动态绑定机制，在运行时根据引用对象的实际类型进行绑定，该例中，在运行时判断Base类型的引用base指向的对象的实际类型是Sub，同时Sub类中重写了hello方法，因此调用的是Sub类中的hello方法。
+
+动态绑定的范围是未使用static或final以及private修饰符修饰的方法，其范围不包括属性。

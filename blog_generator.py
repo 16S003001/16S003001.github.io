@@ -8,7 +8,7 @@ timeformat_title = '%Y-%m-%d %X'
 title = raw_input('Input title: ')
 
 # author of the blog
-author = 'Guomato'
+author = '#1121'
 
 # input categories of the blog, end input with '#'
 categories = []
@@ -27,7 +27,7 @@ localtime = time.localtime(time.time())
 path = '/users/guoyonghui/documents/guomato.github.io/_posts/' + time.strftime(timeformat_file, localtime) + title + '.markdown'
 
 # obtain initial content of the blog according to title, time and categories
-content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: ' + author + '\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories: ['
+content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: '' + author + ''\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories: ['
 for index, category in enumerate(categories):
 	content += category
 	if index != len(categories) - 1:

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Loader加载机制"
-author: Guomato
+author: '#1121'
 date: 2016-10-13 19:27:43 +0800
 categories: [Android源码分析]
 ---
