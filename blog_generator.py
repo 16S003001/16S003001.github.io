@@ -24,10 +24,10 @@ categories = set(categories)
 localtime = time.localtime(time.time())
 
 # obtain file path of the blog
-path = '/users/guoyonghui/documents/guomato.github.io/_posts/' + time.strftime(timeformat_file, localtime) + title + '.markdown'
+path = '/users/guoyonghui/documents/16S003001.github.io/_posts/' + time.strftime(timeformat_file, localtime) + title + '.markdown'
 
 # obtain initial content of the blog according to title, time and categories
-content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: '' + author + ''\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories: ['
+content = '---\nlayout: post\ntitle: \"' + title + '\"\nauthor: \'' + author + '\'\ndate: ' + time.strftime(timeformat_title, localtime) + ' +0800\ncategories: ['
 for index, category in enumerate(categories):
 	content += category
 	if index != len(categories) - 1:

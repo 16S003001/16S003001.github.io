@@ -1,0 +1,249 @@
+---
+layout: post
+title: "Java代理模式"
+author: '#1121'
+date: 2017-03-06 20:11:49 +0800
+categories: [设计模式, Java]
+---
+
+代理模式的作用为：为其他对象提供一个代理以控制对这个对象的访问。
+
+![代理模式的基本结构](https://ooo.0o0.ooo/2017/03/06/58bd57f1ac022.png)
+
+代理模式的基本结构如上图所示，代理类和业务类实现自同一接口，同时代理类持有业务类的引用，在代理类实现的接口的方法中通过持有的业务类的引用调用相应的方法，在调用相应方法过程的前后可增加相应代码以实现控制对业务类对象的访问，比如可以在调用业务类方法前后记录系统时间以记录业务类方法的执行时间。Client通过代理类向上转型为接口来对对象进行访问。
+
+在本文中以计算斐摩那契数为例，通过使用代理模式来记录计算所耗费的时间，接口Fibonacci提供了两个接口，分别是以递归和非递归方式计算第n位斐波那契数。接口定义以及实现了该接口的业务类如下所示。
+
+{% highlight bash linenos %}
+public interface Fibonacci {
+
+    /**
+     * 递归方式计算第<code>n</code>位斐波那契数
+     *
+     * @param n 位数
+     * @return 第<code>n</code>位斐波那契数
+     */
+    @Timer
+    long fibRecursive(int n);
+
+    /**
+     * 非递归方式计算第<code>n</code>位斐波那契数
+     *
+     * @param n 位数
+     * @return 第<code>n</code>位斐波那契数
+     */
+    @Timer
+    long fibNonRecursive(int n);
+
+}
+
+public class FibonacciImpl implements Fibonacci {
+
+    public long fibRecursive(int n) {
+        if (n <= 2) {
+            return 1;
+        } else {
+            return fibRecursive(n - 2) + fibRecursive(n - 1);
+        }
+    }
+
+    public long fibNonRecursive(int n) {
+        long a = 1;
+        long b = 1;
+
+        for (int i = 3; i <= n; i++) {
+            b = a + b;
+            a = b - a;
+        }
+
+        return b;
+    }
+
+}
+{% endhighlight %}
+
+## __静态代理__
+
+首先介绍静态代理。
+
+{% highlight bash linenos %}
+class FibonacciProxy implements Fibonacci {
+
+    private Fibonacci proxied;
+
+    public FibonacciProxy(Fibonacci proxied) {
+        this.proxied = proxied;
+    }
+
+    public long fibRecursive(int n) {
+        long startTime = System.nanoTime();
+
+        long fib = proxied.fibRecursive(n);
+
+        long endTime = System.nanoTime();
+
+        println("执行方法：\tfibRecursive\n耗时：\t\t" + (double) (endTime - startTime) / 1000000 + "ms");
+
+        return fib;
+    }
+
+    public long fibNonRecursive(int n) {
+        long startTime = System.nanoTime();
+
+        long fib = proxied.fibNonRecursive(n);
+
+        long endTime = System.nanoTime();
+
+        println("执行方法：\tfibNonRecursive\n耗时：\t\t" + (double) (endTime - startTime) / 1000000 + "ms");
+
+        return fib;
+    }
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+运行结果:
+执行方法：	fibRecursive
+耗时：		391.634ms
+第40个斐波那契数：	102334155
+执行方法：	fibNonRecursive
+耗时：		0.003ms
+第40个斐波那契数：	102334155
+{% endhighlight %}
+
+静态代理十分简单，按照上面的代理模式基本结构创建一个实现自同一接口的代理类即可，静态代理的优点即代理模式的优点，但其缺点也十分明显：
+
+* 在上面的代理类中，假设我们有一百种以不同方法计算斐波那契数的接口，为了记录每种方法的计算耗时，我们的代理类也要实现这一百种方法，同时每个方法中都要增加记录时间的代码，这显然会使得程序代码量显著增加同时也做了许多重复劳动。
+* 在静态代理模式下，一个代理类只能服务于一种接口，而当我们有很多接口需要使用到代理模式时显然就会需要创建多个代理类。
+
+## __动态代理__
+
+相比于静态代理，Java内置的动态代理能够很好的解决上述的两个问题。
+
+{% highlight bash linenos %}
+public interface Operation {
+
+    @Timer
+    void sayHello(String name);
+
+    @Timer
+    void shutdown();
+
+}
+
+public class Robot implements Operation {
+
+    public void sayHello(String name) {
+        println("Hello " + name);
+    }
+
+    public void shutdown() {
+        println("Prepare for shutdown...");
+
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        println("Shutdown OK!");
+    }
+}
+
+class ProxyHandler implements InvocationHandler {
+
+    private Object proxied;
+
+    public ProxyHandler(Object proxied) {
+        this.proxied = proxied;
+    }
+
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        println(proxy.getClass().getSimpleName());
+        
+        Object obj;
+
+        if (method.isAnnotationPresent(Timer.class)) {
+            long startTime = System.nanoTime();
+
+            obj = method.invoke(proxied, args);
+
+            long endTime = System.nanoTime();
+
+            println("执行方法：\t" + method.getName() + "\n耗时：\t\t" + (double) (endTime - startTime) / 1000000 + "ms");
+        } else {
+            obj = method.invoke(proxied, args);
+        }
+
+        return obj;
+    }
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+
+Fibonacci fibProxied = new FibonacciImpl();
+
+Fibonacci fibProxy = (Fibonacci) Proxy.newProxyInstance(
+        Fibonacci.class.getClassLoader(),
+        new Class[]{Fibonacci.class},
+        new ProxyHandler(fibProxied)
+);
+
+Operation opProxied = new Robot();
+
+Operation opProxy = (Operation) Proxy.newProxyInstance(
+        Operation.class.getClassLoader(),
+        new Class[]{Operation.class},
+        new ProxyHandler(opProxied)
+);
+{% endhighlight %}
+
+{% highlight bash linenos %}
+运行结果:
+$Proxy0
+执行方法：	fibRecursive
+耗时：		433.993ms
+第40个斐波那契数：	102334155
+$Proxy0
+执行方法：	fibNonRecursive
+耗时：		0.012ms
+第40个斐波那契数：	102334155
+$Proxy1
+Hello 郭永辉
+执行方法：	sayHello
+耗时：		0.064ms
+$Proxy1
+Prepare for shutdown...
+Shutdown OK!
+执行方法：	shutdown
+耗时：		503.214ms
+{% endhighlight %}
+
+在上例中，我们实现了一个名为InvocationHandler的接口，在我们的实现类中增加了proxied字段，该字段表示的是我们实际的业务类对象（即被代理的对象），该接口中声明了唯一的一个方法————invoke，invoke方法有三个参数，分别是：
+
+* proxy，即我们的代理类的对象，在动态代理中，我们不需要为我们代理的接口再书写代理类，通过运行结果可以看出，代理类是在运行时动态生成的，类的名称为Proxy+数字形式。
+* method，即我们调用的接口的方法，动态代理中，对代理的方法的调用会被发送至invoke方法，所调用的方法通过反射机制保存在method中，我们需要调用method的invoke方法并将被代理的实际对象和参数传入此方法中，已完成对业务类对象的调用。
+* args，即我们调用代理的方法时传入的参数。
+
+在这一部分里，我们增加了一个接口Operation以及对应的业务类Robot，不同的是我们不再需要为新增的接口再添加新的代理类，我们需要做的只是创建一个实现了InvocationHandler接口的处理器并重写invoke方法即可，需要注意的是我们创建的这个处理器是可以重用的，即使我们需要统计所有接口中所有方法的运行时间，我们也只需要这一个处理器就足够了。
+
+下面来探究一下代理类（诸如Proxy0、Proxy1这些）是如何在运行时被创建的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
