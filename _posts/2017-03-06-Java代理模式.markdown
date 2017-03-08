@@ -103,12 +103,12 @@ class FibonacciProxy implements Fibonacci {
 
 {% highlight bash linenos %}
 运行结果:
-执行方法：	fibRecursive
-耗时：		391.634ms
-第40个斐波那契数：	102334155
-执行方法：	fibNonRecursive
-耗时：		0.003ms
-第40个斐波那契数：	102334155
+执行方法：    fibRecursive
+耗时：        391.634ms
+第40个斐波那契数：    102334155
+执行方法：    fibNonRecursive
+耗时：        0.003ms
+第40个斐波那契数：    102334155
 {% endhighlight %}
 
 静态代理十分简单，按照上面的代理模式基本结构创建一个实现自同一接口的代理类即可，静态代理的优点即代理模式的优点，但其缺点也十分明显：
@@ -202,22 +202,22 @@ Operation opProxy = (Operation) Proxy.newProxyInstance(
 {% highlight bash linenos %}
 运行结果:
 $Proxy0
-执行方法：	fibRecursive
-耗时：		433.993ms
-第40个斐波那契数：	102334155
+执行方法：    fibRecursive
+耗时：        433.993ms
+第40个斐波那契数：    102334155
 $Proxy0
-执行方法：	fibNonRecursive
-耗时：		0.012ms
-第40个斐波那契数：	102334155
+执行方法：    fibNonRecursive
+耗时：        0.012ms
+第40个斐波那契数：    102334155
 $Proxy1
 Hello 郭永辉
-执行方法：	sayHello
-耗时：		0.064ms
+执行方法：    sayHello
+耗时：        0.064ms
 $Proxy1
 Prepare for shutdown...
 Shutdown OK!
-执行方法：	shutdown
-耗时：		503.214ms
+执行方法：    shutdown
+耗时：        503.214ms
 {% endhighlight %}
 
 在上例中，我们实现了一个名为InvocationHandler的接口，在我们的实现类中增加了proxied字段，该字段表示的是我们实际的业务类对象（即被代理的对象），该接口中声明了唯一的一个方法————invoke，invoke方法有三个参数，分别是：
@@ -230,13 +230,703 @@ Shutdown OK!
 
 下面来探究一下代理类（诸如Proxy0、Proxy1这些）是如何在运行时被创建的。
 
+很容易看出，创建代理类是通过Proxy类的静态方法newProxyInstance来创建的，其调用链如下所示。
 
+{% highlight bash linenos %}
+newProxyInstance方法中
 
+/*
+ * Look up or generate the designated proxy class.
+ */
+Class<?> cl = getProxyClass0(loader, intfs);
+{% endhighlight %}
 
+{% highlight bash linenos %}
+getProxyClass0方法中
 
+// If the proxy class defined by the given loader implementing
+// the given interfaces exists, this will simply return the cached copy;
+// otherwise, it will create the proxy class via the ProxyClassFactory
+return proxyClassCache.get(loader, interfaces);
+{% endhighlight %}
 
+这里重点看一下上面的第六行。proxyClassCache的类型是WeakCache<ClassLoader, Class<?>[], Class<?>>一个缓存结构。根据组合键ClassLoader和传入的接口的Class对象数组来获取需要实例化的类。具体的过程进入get方法来看一下。
 
+{% highlight bash linenos %}
+public V get(K key, P parameter) {
+    Objects.requireNonNull(parameter);
 
+    expungeStaleEntries();
+
+    Object cacheKey = CacheKey.valueOf(key, refQueue);
+
+    // lazily install the 2nd level valuesMap for the particular cacheKey
+    ConcurrentMap<Object, Supplier<V>> valuesMap = map.get(cacheKey);
+    if (valuesMap == null) {
+        ConcurrentMap<Object, Supplier<V>> oldValuesMap
+            = map.putIfAbsent(cacheKey,
+                              valuesMap = new ConcurrentHashMap<>());
+        if (oldValuesMap != null) {
+            valuesMap = oldValuesMap;
+        }
+    }
+
+    // create subKey and retrieve the possible Supplier<V> stored by that
+    // subKey from valuesMap
+    Object subKey = Objects.requireNonNull(subKeyFactory.apply(key, parameter));
+    Supplier<V> supplier = valuesMap.get(subKey);
+    Factory factory = null;
+
+    while (true) {
+        if (supplier != null) {
+            // supplier might be a Factory or a CacheValue<V> instance
+            V value = supplier.get();
+            if (value != null) {
+                return value;
+            }
+        }
+        // else no supplier in cache
+        // or a supplier that returned null (could be a cleared CacheValue
+        // or a Factory that wasn't successful in installing the CacheValue)
+
+        // lazily construct a Factory
+        if (factory == null) {
+            factory = new Factory(key, parameter, subKey, valuesMap);
+        }
+
+        if (supplier == null) {
+            supplier = valuesMap.putIfAbsent(subKey, factory);
+            if (supplier == null) {
+                // successfully installed Factory
+                supplier = factory;
+            }
+            // else retry with winning supplier
+        } else {
+            if (valuesMap.replace(subKey, supplier, factory)) {
+                // successfully replaced
+                // cleared CacheEntry / unsuccessful Factory
+                // with our Factory
+                supplier = factory;
+            } else {
+                // retry with current supplier
+                supplier = valuesMap.get(subKey);
+            }
+        }
+    }
+}
+{% endhighlight %}
+
+第2行首先检查了parameter参数不为空，这是因为动态代理是为接口动态创建代理类，若压根都没有传入需要代理的接口那么也就无需创建代理类了。
+
+第6-17行，根据我们传入的键（在这里是ClassLoader的一个实例）创建一个CacheKey，然后根据此key尝试从map中获取二级map，若map中没有该键对应的值则创建一个对应于该键的map。
+
+第21-23行，根据key和parameter创建组合键中的第二个键，并尝试从二级map中获取我们最终需要的Class对象的Supplier。
+
+接下来的代码位于一个死循环中。
+
+第26-32行，若我们获取到的Supplier不为空则从中取出我们需要的对象并作为返回值返回。
+
+第38-59行，构造了一个工厂类，注意，这个工厂类是我们Class对象的真正来源，接下来就是一些简单的操作，比如将supplier指向工厂类对象并更新二级map等。
+
+构造的工厂类的get方法创建了我们需要的代理类的Class对象。我们又可以很容易地发现valueFactory的实现类就是Proxy类中的静态内部类ProxyClassFactory。
+
+{% highlight bash linenos %}
+Factory类的get方法中
+
+value = Objects.requireNonNull(valueFactory.apply(key, parameter));
+{% endhighlight %}
+
+以上所描述的代码主要围绕的问题是运行时生成的动态代理类的缓存、重用的问题，下面将重点介绍动态代理类是如何生成的。
+
+{% highlight bash linenos %}
+@Override
+public Class<?> apply(ClassLoader loader, Class<?>[] interfaces) {
+
+    Map<Class<?>, Boolean> interfaceSet = new IdentityHashMap<>(interfaces.length);
+    for (Class<?> intf : interfaces) {
+        /*
+         * Verify that the class loader resolves the name of this
+         * interface to the same Class object.
+         */
+        Class<?> interfaceClass = null;
+        try {
+            interfaceClass = Class.forName(intf.getName(), false, loader);
+        } catch (ClassNotFoundException e) {
+        }
+        if (interfaceClass != intf) {
+            throw new IllegalArgumentException(
+                intf + " is not visible from class loader");
+        }
+        /*
+         * Verify that the Class object actually represents an
+         * interface.
+         */
+        if (!interfaceClass.isInterface()) {
+            throw new IllegalArgumentException(
+                interfaceClass.getName() + " is not an interface");
+        }
+        /*
+         * Verify that this interface is not a duplicate.
+         */
+        if (interfaceSet.put(interfaceClass, Boolean.TRUE) != null) {
+            throw new IllegalArgumentException(
+                "repeated interface: " + interfaceClass.getName());
+        }
+    }
+
+    ......
+}
+{% endhighlight %}
+
+ProxyClassFactory的apply方法接收的两个参数很明显，就是我们传入的ClassLoader以及要代理的接口集合，上面这一段代码的主要逻辑就是加载我们要代理的接口、判断传入的Class对象是否都是接口以及判断我们重复代理了接口（传入重复的接口的Class对象）。
+
+{% highlight bash linenos %}
+@Override
+public Class<?> apply(ClassLoader loader, Class<?>[] interfaces) {
+
+    ......
+
+    String proxyPkg = null;     // package to define proxy class in
+
+    /*
+     * Record the package of a non-public proxy interface so that the
+     * proxy class will be defined in the same package.  Verify that
+     * all non-public proxy interfaces are in the same package.
+     */
+    for (Class<?> intf : interfaces) {
+        int flags = intf.getModifiers();
+        if (!Modifier.isPublic(flags)) {
+            String name = intf.getName();
+            int n = name.lastIndexOf('.');
+            String pkg = ((n == -1) ? "" : name.substring(0, n + 1));
+            if (proxyPkg == null) {
+                proxyPkg = pkg;
+            } else if (!pkg.equals(proxyPkg)) {
+                throw new IllegalArgumentException(
+                    "non-public interfaces from different packages");
+            }
+        }
+    }
+
+    if (proxyPkg == null) {
+        // if no non-public proxy interfaces, use com.sun.proxy package
+        proxyPkg = ReflectUtil.PROXY_PACKAGE + ".";
+    }
+
+    /*
+     * Choose a name for the proxy class to generate.
+     */
+    long num = nextUniqueNumber.getAndIncrement();
+    String proxyName = proxyPkg + proxyClassNamePrefix + num;
+
+    ......
+
+}
+{% endhighlight %}
+
+接上一段代码，这段的逻辑是对我们要代理的每一个接口进行判断，若接口的可见性都是public，那么生成的动态代理类将会位于com.sun.proxy包中，若有接口的可见性是非public的，那么动态代理类将会生成于非public接口所在的包中，注意：有多个非public的接口且它们在不同的包中的情况是不允许出现的。
+
+最后，通过上面的36、37两行代码，确定了代理类的名字，即包名+$Proxy+一个唯一的数字。
+
+{% highlight bash linenos %}
+@Override
+public Class<?> apply(ClassLoader loader, Class<?>[] interfaces) {
+
+    ......
+
+    /*
+     * Generate the specified proxy class.
+     */
+    byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
+        proxyName, interfaces);
+    try {
+        return defineClass0(loader, proxyName,
+                            proxyClassFile, 0, proxyClassFile.length);
+    } catch (ClassFormatError e) {
+        /*
+         * A ClassFormatError here means that (barring bugs in the
+         * proxy class generation code) there was some other
+         * invalid aspect of the arguments supplied to the proxy
+         * class creation (such as virtual machine limitations
+         * exceeded).
+         */
+        throw new IllegalArgumentException(e.toString());
+    }
+
+}
+{% endhighlight %}
+
+apply方法的最后一段代码，即生成动态代理类的字节码，这一部分工作主要是由ProxyGenerator类的generateClassFile方法完成的，首先介绍下addProxyMethod方法。
+
+{% highlight bash linenos %}
+private void addProxyMethod(Method m, Class fromClass) {
+    String name = m.getName();
+    Class[] parameterTypes = m.getParameterTypes();
+    Class returnType = m.getReturnType();
+    Class[] exceptionTypes = m.getExceptionTypes();
+
+    String sig = name + getParameterDescriptors(parameterTypes);
+    List<ProxyMethod> sigmethods = proxyMethods.get(sig);
+    if (sigmethods != null) {
+    for (ProxyMethod pm : sigmethods) {
+         if (returnType == pm.returnType) {
+             /*
+              * Found a match: reduce exception types to the
+              * greatest set of exceptions that can thrown
+              * compatibly with the throws clauses of both
+              * overridden methods.
+              */
+             List<Class<?>> legalExceptions = new ArrayList<Class<?>>();
+             collectCompatibleTypes(
+                 exceptionTypes, pm.exceptionTypes, legalExceptions);
+             collectCompatibleTypes(
+                 pm.exceptionTypes, exceptionTypes, legalExceptions);
+             pm.exceptionTypes = new Class[legalExceptions.size()];
+             pm.exceptionTypes =
+                 legalExceptions.toArray(pm.exceptionTypes);
+             return;
+         }
+     }
+    } else {
+        sigmethods = new ArrayList<ProxyMethod>(3);
+        proxyMethods.put(sig, sigmethods);
+    }
+    sigmethods.add(new ProxyMethod(name, parameterTypes, returnType, exceptionTypes, fromClass));
+}
+{% endhighlight %}
+
+该方法的前几行通过反射机制获取了方法的名称、参数类型、返回类型以及异常类型。
+
+接下来我们构造了一个字符串sig，这个字符串是方法名加参数的组合，我们知道Java的类中不同的方法是通过名称来区分的，而具有相同名称的方法则可以通过方法接受的参数的不同来区分（即重载，仅靠返回值的不同是无法重载方法的），这个字符串就可以看作是一个方法的标识（但是，当动态代理类代理的是多个接口的时候，有可能存在一个sig对应于多个方法的情况出现）。
+
+然后我们通过sig来从一个名为proxyMethods类型为Map<String, List<ProxyMethod>>的变量中获取代理方法的List，如果List为null那么我们向proxyMethods中添加一个对应于sig的空List，如果不为null那么我们遍历已经对应于sig的代理方法，如果已经有代理方法与我们当前要添加的方法有相同的返回值那么我们合并两个方法的异常类型并返回，若没有则将当前要添加的方法加入到sig对应的List中。
+
+通过以上的分析，我们已经可以知道的事情是proxyMethods中靠方法名加参数表对不同的方法加以区分，而具有相同方法名和参数表的方法则靠返回类型加以区分（但这样是存在着问题的，我们会在后面进行分析）。
+
+回到generateClassFile方法。
+
+{% highlight bash linenos %}
+private byte[] generateClassFile() {
+
+    /* ============================================================
+    * Step 1: Assemble ProxyMethod objects for all methods to
+    * generate proxy dispatching code for.
+    */
+
+    /*
+    * Record that proxy methods are needed for the hashCode, equals,
+    * and toString methods of java.lang.Object.  This is done before
+    * the methods from the proxy interfaces so that the methods from
+    * java.lang.Object take precedence over duplicate methods in the
+    * proxy interfaces.
+    */
+    addProxyMethod(hashCodeMethod, Object.class);
+    addProxyMethod(equalsMethod, Object.class);
+    addProxyMethod(toStringMethod, Object.class);
+
+    /*
+    * Now record all of the methods from the proxy interfaces, giving
+    * earlier interfaces precedence over later ones with duplicate
+    * methods.
+    */
+    for (int i = 0; i < interfaces.length; i++) {
+        Method[] methods = interfaces[i].getMethods();
+        for (int j = 0; j < methods.length; j++) {
+            addProxyMethod(methods[j], interfaces[i]);
+        }
+    }
+
+    ......
+}
+{% endhighlight %}
+
+这一段代码中首先添加了继承自Object类的三个方法，分别是hashCode、equals以及toString。接下来就是为我们需要代理的每一个接口中的每一个方法添加代理方法。
+
+{% highlight bash linenos %}
+private byte[] generateClassFile() {
+
+    ......
+
+    /*
+    * For each set of proxy methods with the same signature,
+    * verify that the methods' return types are compatible.
+    */
+    for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
+        checkReturnTypes(sigmethods);
+    }
+
+    ......
+
+}
+{% endhighlight %}
+
+这一段代码对应于我们刚刚提出的问题，即具有相同方法名的方法通过参数不同来进行重载，而不能通过仅靠返回类型不同来进行重载，假设我们要代理的接口I1和接口I2直到In中有n个接受相同参数的同名方法，但它们具有不同的返回类型，那么当且仅当这n个不同的返回类型能构成一条单继承链时才能够生成动态代理类。checkReturnTypes方法做了以下所述的工作：
+
+1. 若传入的方法数组的大小小于2那么显然应该直接通过检查。
+2. 维护一个名为uncoveredReturnTypes，表示还未被覆盖（继承）的返回类型。
+3. 将传入的每一个方法的返回类型同uncoveredReturnTypes中的类型相比较，若传入的返回类型为基本类型则报错，因为基本类型不继承自任何类型也无法被继承。
+4. 若传入的返回类型是uncoveredReturnTypes中某类型A的超类则直接进入下一个返回类型的判断即可，这是因为传入的返回类型已经被类型A所覆盖。
+5. 若传入的返回类型是uncoveredReturnTypes中某类型B的子类则使用传入的返回类型替换uncoveredReturnTypes中的类型B，因为类型B已经被传入的返回类型所覆盖。
+6. 若传入的返回类型即不是uncoveredReturnTypes中某类型的子类也不是某类型的父类则将其加入到uncoveredReturnTypes中。
+6. 最后判断uncoveredReturnTypes的大小是否大于1，若大于1则说明至少有两条单继承链存在，这是不合法的。
+
+{% highlight bash linenos %}
+private byte[] generateClassFile() {
+
+    ......
+
+    /* ============================================================
+     * Step 2: Assemble FieldInfo and MethodInfo structs for all of
+     * fields and methods in the class we are generating.
+     */
+    try {
+        methods.add(generateConstructor());
+
+        for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
+            for (ProxyMethod pm : sigmethods) {
+
+                // add static field for method's Method object
+                fields.add(new FieldInfo(pm.methodFieldName,
+                    "Ljava/lang/reflect/Method;",
+                    ACC_PRIVATE | ACC_STATIC));
+
+                // generate code for proxy method and add it
+                methods.add(pm.generateMethod());
+            }
+        }
+
+        methods.add(generateStaticInitializer());
+
+    } catch (IOException e) {
+        throw new InternalError("unexpected I/O Exception");
+    }
+
+    ......
+
+}
+{% endhighlight %}
+
+这一部分代码首先调用generateConstructor生成构造器对应的方法，构造器中以传入的InvocationHandler实现类的对象参数调用了父类Proxy的构造器，不多做描述。
+
+接下来，遍历了要代理的所有接口的所有方法，为每一个要代理的方法都设置了一个类型为method的私有静态变量，并生成相应的方法，下面看一下ProxyMethod的generateMethod方法。
+
+{% highlight bash linenos %}
+ private MethodInfo generateMethod() throws IOException {
+    String desc = getMethodDescriptor(parameterTypes, returnType);
+    MethodInfo minfo = new MethodInfo(methodName, desc,
+     ACC_PUBLIC | ACC_FINAL);
+
+    ......
+
+    DataOutputStream out = new DataOutputStream(minfo.code);
+
+    code_aload(0, out);
+
+    out.writeByte(opc_getfield);
+    out.writeShort(cp.getFieldRef(
+        superclassName,
+        handlerFieldName, "Ljava/lang/reflect/InvocationHandler;"));
+
+    code_aload(0, out);
+
+    out.writeByte(opc_getstatic);
+    out.writeShort(cp.getFieldRef(
+        dotToSlash(className),
+        methodFieldName, "Ljava/lang/reflect/Method;"));
+
+    if (parameterTypes.length > 0) {
+
+        code_ipush(parameterTypes.length, out);
+
+        out.writeByte(opc_anewarray);
+        out.writeShort(cp.getClass("java/lang/Object"));
+
+        for (int i = 0; i < parameterTypes.length; i++) {
+
+            out.writeByte(opc_dup);
+
+            code_ipush(i, out);
+
+            codeWrapArgument(parameterTypes[i], parameterSlot[i], out);
+
+            out.writeByte(opc_aastore);
+        }
+    } else {
+
+        out.writeByte(opc_aconst_null);
+    }
+
+    out.writeByte(opc_invokeinterface);
+    out.writeShort(cp.getInterfaceMethodRef(
+        "java/lang/reflect/InvocationHandler",
+        "invoke",
+        "(Ljava/lang/Object;Ljava/lang/reflect/Method;" +
+            "[Ljava/lang/Object;)Ljava/lang/Object;"));
+    out.writeByte(4);
+    out.writeByte(0);
+
+    if (returnType == void.class) {
+
+        out.writeByte(opc_pop);
+         
+        out.writeByte(opc_return);
+
+    } else {
+
+        codeUnwrapReturnValue(returnType, out);
+    }
+
+    ......
+}
+{% endhighlight %}
+
+通俗地讲，上述代码的功能就是调用InvocationHandler的invoke方法（就是我们实现的处理器类）。接下来在generateClassFile方法中，还有一个generateStaticInitializer方法，这个方法的主要作用就是在静态代码块中实例化上面为每一个需要代理的方法所设置的的Method对象，也不做赘述。至此动态代理类的字节码基本被构建完毕。
+
+下面我们来进行一波实力操作。
+
+## __一些实验__
+
+### __实验一   代理的多个接口中两个方法具有相同的名称以及参数列表但返回类型不同__
+
+{% highlight bash linenos %}
+public class DynamicProxy {
+
+    public static void main(String[] args) {
+        Clazz1Impl proxied = new Clazz1Impl();
+
+        Interfaze1 proxy = (Interfaze1) Proxy.newProxyInstance(
+                Interfaze1.class.getClassLoader(),
+                new Class[]{Interfaze1.class, Interfaze2.class},
+                new ProxyHandler(proxied)
+        );
+
+        proxy.method1();
+    }
+
+}
+
+interface Interfaze1 {
+
+    Clazz1 method1();
+
+}
+
+interface Interfaze2 {
+
+    Clazz2 method1();
+
+}
+
+class Clazz1 {
+
+}
+
+class Clazz2 {
+
+}
+
+class Clazz1Impl implements Interfaze1 {
+
+    public Clazz1 method1() {
+        return null;
+    }
+}
+
+class ProxyHandler implements InvocationHandler {
+
+    private Object proxied;
+
+    public ProxyHandler(Object proxied) {
+        this.proxied = proxied;
+    }
+
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        return method.invoke(proxied, args);
+    }
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+运行结果:
+Exception in thread "main" java.lang.IllegalArgumentException: methods with same signature method1() but incompatible return types: [class com.nov21th.p4.Clazz1, class com.nov21th.p4.Clazz2]
+    at sun.misc.ProxyGenerator.checkReturnTypes(ProxyGenerator.java:686)
+    at sun.misc.ProxyGenerator.generateClassFile(ProxyGenerator.java:437)
+    at sun.misc.ProxyGenerator.generateProxyClass(ProxyGenerator.java:323)
+    at java.lang.reflect.Proxy$ProxyClassFactory.apply(Proxy.java:672)
+    at java.lang.reflect.Proxy$ProxyClassFactory.apply(Proxy.java:592)
+    at java.lang.reflect.WeakCache$Factory.get(WeakCache.java:244)
+    at java.lang.reflect.WeakCache.get(WeakCache.java:141)
+    at java.lang.reflect.Proxy.getProxyClass0(Proxy.java:455)
+    at java.lang.reflect.Proxy.newProxyInstance(Proxy.java:738)
+    at com.nov21th.p4.DynamicProxy.main(DynamicProxy.java:16)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:606)
+    at com.intellij.rt.execution.application.AppMain.main(AppMain.java:147)
+{% endhighlight %}
+
+可以看到运行会报错，而错误的含义和我们之前说明的相吻合。
+
+{% highlight bash linenos %}
+class Clazz2 extends Clazz1 {
+
+}
+{% endhighlight %}
+
+修改Clazz2使其继承Clazz1使其构成一条继承链便可消除该错误。
+
+### __实验二   导出生成的动态代理类__
+
+{% highlight bash linenos %}
+interface Interfaze {
+
+    void method(String str1, String str2, String str3);
+
+}
+{% endhighlight %}
+
+通过javaagent我们可以导出运行时生成的动态代理类，使用javap命令以及反编译工具可以查看到相应的字节码以及类文件。
+
+首先来解析一下为上面这个接口生成的代理类的字节码。
+
+{% highlight bash linenos %}
+public final java.lang.String method(java.lang.String, java.lang.String, java.lang.String) throws ;
+flags: ACC_PUBLIC, ACC_FINAL
+Code:
+  stack=10, locals=5, args_size=4
+     0: aload_0       
+     1: getfield      #16                 // Field java/lang/reflect/Proxy.h:Ljava/lang/reflect/InvocationHandler;
+     4: aload_0       
+     5: getstatic     #60                 // Field m3:Ljava/lang/reflect/Method;
+     8: iconst_3      
+     9: anewarray     #22                 // class java/lang/Object
+    12: dup           
+    13: iconst_0      
+    14: aload_1       
+    15: aastore       
+    16: dup           
+    17: iconst_1      
+    18: aload_2       
+    19: aastore       
+    20: dup           
+    21: iconst_2      
+    22: aload_3       
+    23: aastore       
+    24: invokeinterface #28,  4           // InterfaceMethod java/lang/reflect/InvocationHandler.invoke:(Ljava/lang/Object;Ljava/lang/reflect/Method;[Ljava/lang/Object;)Ljava/lang/Object;
+    29: checkcast     #62                 // class java/lang/String
+    32: areturn       
+    33: athrow        
+    34: astore        4
+    36: new           #42                 // class java/lang/reflect/UndeclaredThrowableException
+    39: dup           
+    40: aload         4
+    42: invokespecial #45                 // Method java/lang/reflect/UndeclaredThrowableException."<init>":(Ljava/lang/Throwable;)V
+    45: athrow        
+  Exception table:
+     from    to  target type
+         0    33    33   Class java/lang/Error
+         0    33    33   Class java/lang/RuntimeException
+         0    33    34   Class java/lang/Throwable
+Exceptions:
+  throws 
+
+{% endhighlight %}
+
+首先可以看到方法使用了public以及final修饰符进行修饰，同时方法名以及参数表和我们要代理的方法相同，接着我们分析一波上面的字节码，主要是第5-25行。
+
+* 5-6行，将this引用入栈，然后this引用被弹出栈用于获取对象的InvocationHandler引用并压入栈。
+
+![操作数栈示意图](https://ooo.0o0.ooo/2017/03/08/58bf78c23ed36.png)
+
+* 7-8行，将this引用入栈，然后获取类的static引用并压入栈（由于获取的是静态的引用因此无需将this引用弹出栈），这个引用便是为每个要代理的方法创建的私有静态的Method引用。
+
+![操作数栈示意图](https://ooo.0o0.ooo/2017/03/08/58bf791cdffc1.png)
+
+* 9-10行，读取方法的的参数个数为3并将3压入栈，弹出栈顶的数字根据该数字分配数组空间并将数组的引用压入栈。
+
+![操作数栈示意图](https://ooo.0o0.ooo/2017/03/08/58bf793095f7f.png)
+
+* 11-22，这是在一个循环中进行的，以第一次循环为例，复制栈顶的数组引用至栈顶，将0压入栈，将方法接受的第一个参数的引用压入栈，然后使用aastore指令将栈顶的三个操作数出栈，其含义为将第一个参数的引用存入数组的0位置，经过此循环，方法的三个参数的引用被依次存入到了数组的相应位置上。
+
+![操作数栈示意图](https://ooo.0o0.ooo/2017/03/08/58bf7942aef9c.png)
+
+* 23行，调用接口方法，这里指的是InvocationHandler接口的invoke方法，需要四个参数，依次是InvocationHandler的引用，当前动态代理的引用（即this），代理的方法的Method对象的引用以及方法的参数数组的引用，这正好对应着当前栈中自底向上的四个操作数，依次出栈并将invoke方法的返回结果压入栈。
+
+![操作数栈示意图](https://ooo.0o0.ooo/2017/03/08/58bf7951b14b0.png)
+
+* 24-25行，对返回结果进行类型检查并从当前方法中返回该结果的引用。
+
+以上是对生成的动态代理类的字节码的分析，下面再贴出对此class文件反编译的结果。
+
+{% highlight bash linenos %}
+public final class $Proxy0
+        extends Proxy
+        implements Interfaze {
+    private static Method m1;
+    private static Method m0;
+    private static Method m3;
+    private static Method m2;
+
+    public $Proxy0(InvocationHandler paramInvocationHandler) {
+        super(paramInvocationHandler);
+    }
+
+    public final boolean equals(Object paramObject) {
+        try {
+            return ((Boolean) this.h.invoke(this, m1, new Object[]{paramObject})).booleanValue();
+        } catch (Error | RuntimeException localError) {
+            throw localError;
+        } catch (Throwable localThrowable) {
+            throw new UndeclaredThrowableException(localThrowable);
+        }
+    }
+
+    public final int hashCode() {
+        try {
+            return ((Integer) this.h.invoke(this, m0, null)).intValue();
+        } catch (Error | RuntimeException localError) {
+            throw localError;
+        } catch (Throwable localThrowable) {
+            throw new UndeclaredThrowableException(localThrowable);
+        }
+    }
+
+    public final String method(String paramString1, String paramString2, String paramString3) {
+        try {
+            return (String) this.h.invoke(this, m3, new Object[]{paramString1, paramString2, paramString3});
+        } catch (Error | RuntimeException localError) {
+            throw localError;
+        } catch (Throwable localThrowable) {
+            throw new UndeclaredThrowableException(localThrowable);
+        }
+    }
+
+    public final String toString() {
+        try {
+            return (String) this.h.invoke(this, m2, null);
+        } catch (Error | RuntimeException localError) {
+            throw localError;
+        } catch (Throwable localThrowable) {
+            throw new UndeclaredThrowableException(localThrowable);
+        }
+    }
+
+    static {
+        try {
+            m1 = Class.forName("java.lang.Object").getMethod("equals", new Class[]{Class.forName("java.lang.Object")});
+            m0 = Class.forName("java.lang.Object").getMethod("hashCode", new Class[0]);
+            m3 = Class.forName("com.nov21th.p4.Interfaze").getMethod("method", new Class[]{Class.forName("java.lang.String"), Class.forName("java.lang.String"), Class.forName("java.lang.String")});
+            m2 = Class.forName("java.lang.Object").getMethod("toString", new Class[0]);
+            return;
+        } catch (NoSuchMethodException localNoSuchMethodException) {
+            throw new NoSuchMethodError(localNoSuchMethodException.getMessage());
+        } catch (ClassNotFoundException localClassNotFoundException) {
+            throw new NoClassDefFoundError(localClassNotFoundException.getMessage());
+        }
+    }
+}
+{% endhighlight %}
 
 
 
