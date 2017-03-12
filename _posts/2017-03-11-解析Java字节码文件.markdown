@@ -1,0 +1,403 @@
+---
+layout: post
+title: "解析Java字节码文件"
+author: '#1121'
+date: 2017-03-11 21:33:27 +0800
+categories: [Java]
+---
+
+首先，新建一个极其简单的类，Test.java，然后打开编译该类后生成的.class文件
+
+{% highlight bash linenos %}
+package com.nov21th;
+
+/**
+ * @author #1121
+ * @since 1.0 2017/3/12.
+ */
+public class Test {
+
+    private static int counter = 0;
+
+    public int inc() {
+        return counter++;
+    }
+
+}
+{% endhighlight %}
+
+{% highlight bash linenos %}
+cafe babe 0000 0031 0017 0a00 0400 1309
+0003 0014 0700 1507 0016 0100 0763 6f75
+6e74 6572 0100 0149 0100 063c 696e 6974
+3e01 0003 2829 5601 0004 436f 6465 0100
+0f4c 696e 654e 756d 6265 7254 6162 6c65
+0100 124c 6f63 616c 5661 7269 6162 6c65
+5461 626c 6501 0004 7468 6973 0100 124c
+636f 6d2f 6e6f 7632 3174 682f 5465 7374
+3b01 0003 696e 6301 0003 2829 4901 0008
+3c63 6c69 6e69 743e 0100 0a53 6f75 7263
+6546 696c 6501 0009 5465 7374 2e6a 6176
+610c 0007 0008 0c00 0500 0601 0010 636f
+6d2f 6e6f 7632 3174 682f 5465 7374 0100
+106a 6176 612f 6c61 6e67 2f4f 626a 6563
+7400 2100 0300 0400 0000 0100 0a00 0500
+0600 0000 0300 0100 0700 0800 0100 0900
+0000 2f00 0100 0100 0000 052a b700 01b1
+0000 0002 000a 0000 0006 0001 0000 0007
+000b 0000 000c 0001 0000 0005 000c 000d
+0000 0001 000e 000f 0001 0009 0000 0034
+0003 0001 0000 000a b200 0259 0460 b300
+02ac 0000 0002 000a 0000 0006 0001 0000
+000c 000b 0000 000c 0001 0000 000a 000c
+000d 0000 0008 0010 0008 0001 0009 0000
+001d 0001 0000 0000 0005 03b3 0002 b100
+0000 0100 0a00 0000 0600 0100 0000 0900
+0100 1100 0000 0200 12
+{% endhighlight %}
+
+那么今天的工作就是手动解析这份字节码文件。
+
+字节码文件结构表
+
+<table class="table table-bordered table-striped table-hover">
+<thead>
+    <tr>
+        <td>序号</td>
+        <td>类型</td>
+        <td>名称</td>
+        <td>长度</td>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+        <td>1</td>
+        <td>u4</td>
+        <td>magic</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td>u2</td>
+        <td>minor_version</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>3</td>
+        <td>u2</td>
+        <td>major_version</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td>u2</td>
+        <td>constant_pool_count</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>5</td>
+        <td>cp_info</td>
+        <td>constant_pool</td>
+        <td>constant_pool_count-1</td>
+    </tr>
+    <tr>
+        <td>6</td>
+        <td>u2</td>
+        <td>access_flags</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>7</td>
+        <td>u2</td>
+        <td>this_class</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>8</td>
+        <td>u2</td>
+        <td>super_class</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>9</td>
+        <td>u2</td>
+        <td>interfaces_count</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>10</td>
+        <td>u2</td>
+        <td>interfaces</td>
+        <td>interfaces_count</td>
+    </tr>
+    <tr>
+        <td>11</td>
+        <td>u2</td>
+        <td>fields_count</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>12</td>
+        <td>field_info</td>
+        <td>fields</td>
+        <td>fields_count</td>
+    </tr>
+    <tr>
+        <td>13</td>
+        <td>u2</td>
+        <td>methods_count</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>14</td>
+        <td>method_info</td>
+        <td>methods</td>
+        <td>methods_count</td>
+    </tr>
+    <tr>
+        <td>15</td>
+        <td>u2</td>
+        <td>attributes_count</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>16</td>
+        <td>attribute_info</td>
+        <td>attributes</td>
+        <td>attributes_count</td>
+    </tr>
+</tbody>
+</table>
+
+根据上面的结构表来逐步解析。
+
+{% highlight bash linenos %}
+magic:                                              cafe babe
+minor_version:                                      0000                // 0
+major_version:                                      0031                // 49
+constant_pool_count:                                0017                // length:22
+constant_pool:                          
+    #1  Methodref                                   0a
+                                                    0004                // #4   java/lang/Object
+                                                    0013                // #19  <init>:()V
+    #2  Fieldref                                    09
+                                                    0003                // #3   com/nov21th/Test
+                                                    0014                // #20  counter:I
+    #3  Class                                       07
+                                                    0015                // #21  com/nov21th/Test
+    #4  Class                                       07
+                                                    0016                // #22  java/lang/Object
+    #5  Utf8                                        01
+                                                    0007                // length:7
+                                                    636f 756e
+                                                    7465 72             // counter
+    #6  Utf8                                        01
+                                                    0001                // length:1
+                                                    49                  // I
+    #7  Utf8                                        01
+                                                    0006                // length:6
+                                                    3c69 6e69
+                                                    743e                // <init>
+    #8  Utf8                                        01
+                                                    0003                // length:3
+                                                    2829
+                                                    56                  // ()V
+    #9  Utf8                                        01
+                                                    0004                // length:4
+                                                    436f 6465           // Code
+    #10 Utf8                                        01
+                                                    000f                // length:15
+                                                    4c69 6e65
+                                                    4e75 6d62
+                                                    6572 5461
+                                                    626c 65             // LineNumberTable
+    #11 Utf8                                        01
+                                                    0012                // length:18
+                                                    4c6f 6361
+                                                    6c56 6172
+                                                    6961 626c
+                                                    6554 6162
+                                                    6c65                // LocalVariableTable
+    #12 Utf8                                        01
+                                                    0004                // length:4
+                                                    7468 6973           // this
+    #13 Utf8                                        01
+                                                    0012                // length:18
+                                                    4c63 6f6d
+                                                    2f6e 6f76
+                                                    3231 7468
+                                                    2f54 6573
+                                                    743b                // Lcom/nov21th/Test;
+    #14 Utf8                                        01
+                                                    0003                // length:3
+                                                    696e 63             // inc
+    #15 Utf8                                        01
+                                                    0003                // length:3
+                                                    2829 49             // ()I
+    #16 Utf8                                        01
+                                                    0008                // length:8
+                                                    3c63 6c69
+                                                    6e69 743e           // <clinit>
+    #17 Utf8                                        01
+                                                    000a                // length:10
+                                                    536f 7572
+                                                    6365 4669
+                                                    6c65                // SourceFile
+    #18 Utf8                                        01
+                                                    0009                // length:9
+                                                    5465 7374
+                                                    2e6a 6176
+                                                    61                  // Test.java
+    #19 NameAndType                                 0c
+                                                    0007                // #7   <init>
+                                                    0008                // #8   ()V   
+    #20 NameAndType                                 0c
+                                                    0005                // #5   counter
+                                                    0006                // #6   I
+    #21 Utf8                                        01
+                                                    0010                // length:16
+                                                    636f 6d2f
+                                                    6e6f 7632
+                                                    3174 682f
+                                                    5465 7374           // com/nov21th/Test
+    #22 Utf8                                        01
+                                                    0010                // length:16
+                                                    6a61 7661
+                                                    2f6c 616e
+                                                    672f 4f62
+                                                    6a65 6374           // java/lang/Object
+access_flags:                                       0021                // ACC_PUBLIC   ACC_SUPER
+this_class:                                         0003                // #3   com/nov21th/Test
+super_class:                                        0004                // #4   java/lang/Object
+interfaces_count:                                   0000                // length:0
+interfaces:                                                             // empty
+fields_count:                                       0001                // length:1
+fileds:                         
+    access_flags:                                   000a                // ACC_PRIVATE  ACC_STATIC      
+    name_index:                                     0005                // #5   counter
+    descriptor_index:                               0006                // #6   I
+    attributes_count:                               0000                // length:0
+    attributes:                                                         // empty
+methods_count:                                      0003                // length:3
+methods:                            
+    access_flags:                                   0001                // ACC_PUBLIC
+    name_index:                                     0007                // #7   <init>
+    descriptor_index:                               0008                // #8   ()V
+    attributes_count:                               0001                // length:1
+    attributes:                 
+        attribute_name_index:                       0009                // #9   Code
+        attribute_length:                           0000 002f           // length:47
+        info:                   
+            max_stack:                              0001                // 1
+            max_locals:                             0001                // 1
+            code_length:                            0000 0005           // length:5
+            code:                                   
+                                                    2a                  // 0:aload_0
+                                                    b7 0001             // 1:invokespecial  #1  java/lang/Object.<init>:()V
+                                                    b1                  // 4:return
+            exception_table_length:                 0000                // length:0
+            exception_table:                                            // empty
+            attributes_count:                       0002                // length:2
+            attributes:         
+                attribute_name_index:               000a                // #10  LineNumberTable
+                attribute_length:                   0000 0006           // length:6
+                info:   
+                    line_number_table_length:       0001                // length:1
+                    line_number_table:
+                        start_pc:                   0000                // 0
+                        line_number:                0007                // 7
+                attribute_name_index:               000b                // #11  LocalVariableTable
+                attribute_length:                   0000 000c           // length:12
+                info:
+                    local_variable_table_length:    0001                // length:1
+                    local_variable_table:
+                        start_pc:                   0000                // 0
+                        length:                     0005                // 5
+                        name_index:                 000c                // #12  this
+                        descriptor_index:           000d                // #13  Lcom/nov21th/Test;
+                        index:                      0000                // 0
+    access_flags:                                   0001                // ACC_PUBLIC
+    name_index:                                     000e                // #14  inc
+    descriptor_index:                               000f                // #15  ()I
+    attributes_count:                               0001                // length:1
+    attributes:
+        attribute_name_index:                       0009                // #9   Code
+        attribute_length:                           0000 0034           // length:52
+        info:
+            max_stacks:                             0003                // 3
+            max_locals:                             0001                // 1
+            code_length:                            0000 000a           // length:10
+            code:
+                                                    b2 0002             // 0:getstatic  #2  com/nov21th/Test.counter:I
+                                                    59                  // 3:dup
+                                                    04                  // 4:iconst_1
+                                                    60                  // 5:iadd
+                                                    b3 0002             // 6:putstatic  #2  com/nov21th/Test.counter:I
+                                                    ac                  // 9:ireturn
+            exception_table_length:                 0000                // length:0
+            exception_table:                                            // empty
+            attributes_count:                       0002                // length:2
+            attributes:
+                attribute_name_index:               000a                // #10  LineNumberTable
+                attribute_length:                   0000 0006           // length:6
+                info:
+                    line_number_table_length:       0001                // length:1
+                    line_number_table:
+                        start_pc:                   0000                // 0
+                        line_number:                000c                // 12
+                attribute_name_index:               000b                // #11  LocalVariableTable
+                attribute_length:                   0000 000c           // length:12
+                info:
+                    local_variable_table_length:    0001                // length:1
+                    local_variable_table:
+                        start_pc:                   0000                // 0
+                        length:                     000a                // 10
+                        name_index:                 000c                // #12  this
+                        descriptor_index:           000d                // #13  Lcom/nov21th/Test;
+                        index:                      0000                // 0
+    access_flags:                                   0008                // ACC_STATIC
+    name_index:                                     0010                // #16  <clinit>
+    descriptor_index:                               0008                // #8   ()V
+    attributes_count:                               0001                // length:1
+    attributes:
+        attribute_name_index:                       0009                // #9   Code
+        attribute_length:                           0000 001d           // length:29
+        info:
+            max_stacks:                             0001                // 1
+            max_locals:                             0000                // 0
+            code_length:                            0000 0005           // length:5
+            code:
+                                                    03                  // 0:iconst_0
+                                                    b3 0002             // 1:putstatic  #2  com/nov21th/Test.counter:I
+                                                    b1                  // 4:return
+            exception_table_length:                 0000                // length:0
+            exception_table:                                            // empty
+            attributes_count:                       0001                // length:1
+            attributes:
+                attribute_name_index:               000a                // #10  LineNumberTable
+                attribute_length:                   0000 0006           // length:6
+                info:
+                    line_number_table_length:       0001                // length:1
+                    line_number_table:
+                        start_pc:                   0000                // 0
+                        line_number:                0009                // 9
+attributes_count:                                   0001                // length:1
+attributes:
+    attribute_name_index:                           0011                // #17  SourceFile
+    attribute_length:                               0000 0002           // length:2
+    info:
+        sourcefile_index:                           0012                // #18  Test.java
+
+{% endhighlight %}
+
+
+
+
+
+
+
+
+
+
+
+
