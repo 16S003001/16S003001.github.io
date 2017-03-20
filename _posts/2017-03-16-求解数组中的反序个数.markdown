@@ -3,7 +3,7 @@ layout: post
 title: "求解数组中的反序个数"
 author: '#1121'
 date: 2017-03-16 22:57:53 +0800
-categories: [分治法, 算法]
+categories: [分治法]
 ---
 
 怒水一发，来自算法课的作业。
