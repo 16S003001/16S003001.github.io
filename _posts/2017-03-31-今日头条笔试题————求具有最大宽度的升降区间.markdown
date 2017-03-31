@@ -1,0 +1,93 @@
+---
+layout: post
+title: "今日头条笔试题————求具有最大宽度的升降区间"
+author: '#1121'
+date: 2017-03-31 10:23:28 +0800
+categories: [动态规划]
+---
+
+具体的题目记不太清了，大致如下：
+
+用一个n维数组表示函数f(x)的n个值，横坐标按序，对于每一个点上要么严格递增要么严格递减（即不存在相邻的点具有相同的值），求使得函数形状为先上升后下降的最大区间的起始和结束下标，若找不到这样的区间则输出-1，若存在多个具有相同宽度的区间则输出最左的一个区间，**下面将符合这种特性的区间简称为区间**。
+
+## 思路
+
+使用动态规划进行求解，引入四个变量如下：
+
+* **startAll**，即最优解的起始坐标，初始化为-1
+* **endAll**，即最优解的结束坐标，初始化为-1
+* **startCur**，以当前正在访问的点为结束坐标的区间的起始坐标
+* **endCur**，以当前正在访问的点为结束坐标的区间的结束坐标
+
+引入这四个变量之后，**题目的求解其实就变为了具有最大差值（即区间宽度）的start和end坐标**。
+
+对于任意符合题意的区间，其起始点一定小于前一个点和后一个点（第一点只需小于后一个点），所以我们首先通过一个循环来找到第一个起始点first，则此时first点与first+1点已经构成了一个上升沿，同时first点一定会是一个区间的起始点，所以我们将startCur和endCur均初始化为first的值，然后我们从第first+2点开始判断，**这时我们引入一个变量up，记录当前点之前的两个点是构成上升沿还是构成下降沿**，由于first点与first+1点已经构成了一个上升沿，而我们从first+2点开始遍历，所以up被初始化为true，那么有如下几种情况需要判断：
+
+* **若之前的两个点构成上升沿并且当前点大于上一个点**，即此时仍然未形成一个区间，因此不做操作
+* **若之前的两个点构成上升沿并且当前点小于上一个点**，即此时已经形成了一个区间，因此我们将endCur置为当前遍历的下标，同时当前点已经与其上一个点构成了一个下降沿，因此需要将up置为false
+* **若之前的两个点构成下降沿并且当前点小于上一个点**，即此时区间仍在延长，因此我们讲endCur置为当前遍历的下标
+* **若之前的两个点构成下降沿并且当前点大于上一个点**，即此时一个新的区间已经开始，且其起始坐标为当前遍历的上一个点，因此我们将startCur和endCur均置为上一个点的下标，同时由于当前点已经与上一个点形成了上升沿，因此将up置为true
+
+经过了上面的逻辑，接下来我们需要判断当前形成的区间宽度是否大于当前最优解的宽度，若大于则将当前最优解的下标置为当前区间的下标即可。
+
+## 代码
+
+{% highlight bash linenos %}
+public class Solution {
+
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
+
+        int n = in.nextInt();
+        int[] num = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            num[i] = in.nextInt();
+        }
+
+        int first = 0;
+        while (first < n - 1 && num[first] > num[first + 1]) {
+            first++;
+        }
+
+        int startAll = -1;
+        int endAll = -1;
+        int startCur = first;
+        int endCur = first;
+
+        first += 2;
+
+        if (first < n) {
+            boolean up = true;
+
+            for (int i = first; i < n; i++) {
+                if (up) {
+                    if (num[i] < num[i - 1]) {
+                        endCur = i;
+                        up = false;
+                    }
+                } else {
+                    if (num[i] < num[i - 1]) {
+                        endCur = i;
+                    } else {
+                        startCur = endCur = i - 1;
+                        up = true;
+                    }
+                }
+
+                if (endCur - startCur > endAll - startAll) {
+                    startAll = startCur;
+                    endAll = endCur;
+                }
+            }
+        }
+
+        System.out.println(startAll + " " + endAll);
+    }
+
+}
+{% endhighlight %}
+
+## 复杂度分析
+
+显然，时间复杂度为O(n)。
