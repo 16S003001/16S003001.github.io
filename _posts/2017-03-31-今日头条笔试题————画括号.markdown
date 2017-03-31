@@ -1,0 +1,101 @@
+---
+layout: post
+title: "今日头条笔试题————画括号"
+author: '#1121'
+date: 2017-03-31 13:15:15 +0800
+categories: [笔试]
+---
+
+题目大概就是要把[[[]]][]这样的括号画成这样：
+
+{% highlight bash %}
++-----+
+|+---+|
+ |+-+| 
+  | |  
+
+  | |  
+ |+-+| 
+|+---+|
++-----+
++-----+
+|     |
+
+|     |
++-----+
+{% endhighlight %}
+
+需要注意的是直接匹配的括号需要多画一个空行，没什么太多好说的，就是一顿画。
+
+## 代码
+
+{% highlight bash linenos %}
+public class Solution {
+
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
+
+        char[] brackets = in.nextLine().toCharArray();
+
+        int max = 0;
+        int depth = 0;
+        for (int i = 0; i < brackets.length; i++) {
+            char bracket = brackets[i];
+
+            if (bracket == '[') {
+                depth++;
+            } else {
+                depth--;
+            }
+
+            max = depth > max ? depth : max;
+        }
+
+        depth = 0;
+
+        for (int i = 0; i < brackets.length; i++) {
+            char bracket = brackets[i];
+
+            int level;
+            boolean directMatch;
+            boolean directBracketed;
+
+            if (bracket == '[') {
+                level = max - depth++;
+                directMatch = false;
+                directBracketed = i > 0 && brackets[i - 1] == brackets[i];
+            } else {
+                level = max - --depth;
+                directMatch = brackets[i - 1] == '[';
+                directBracketed = i < brackets.length - 1 && brackets[i + 1] == brackets[i];
+            }
+
+            StringBuilder sb = new StringBuilder();
+
+            if (directMatch) {
+                for (int j = 0; j < 2 * max + 1; j++) {
+                    sb.append(j == max - level || j == max + level ? '|' : ' ');
+                }
+                System.out.println(sb.toString());
+                System.out.println();
+                System.out.println(sb.toString());
+            }
+
+            sb.setLength(0);
+            for (int j = 0; j < 2 * max + 1; j++) {
+                if (j < max - level - 1 || j > max + level + 1) {
+                    sb.append(' ');
+                } else if (j < max - level || j > max + level) {
+                    sb.append(directBracketed ? '|' : ' ');
+                } else if (j < max - level + 1 || j > max + level - 1) {
+                    sb.append('+');
+                } else {
+                    sb.append('-');
+                }
+            }
+            System.out.println(sb.toString());
+        }
+    }
+
+}
+{% endhighlight %}
